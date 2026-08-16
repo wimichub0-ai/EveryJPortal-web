@@ -13,16 +13,26 @@ type TopCreatorsProps = {
 export function TopCreators({ creators, changedIds }: TopCreatorsProps) {
   if (!creators.length) return null;
 
-  const displayOrder = [creators[1], creators[0], creators[2]].filter(
-    Boolean,
-  ) as RankedCreator[];
+  const displayOrder =
+    creators.length === 3
+      ? [creators[1], creators[0], creators[2]]
+      : creators;
+  const gridClass =
+    creators.length === 1
+      ? "mx-auto grid-cols-1 max-w-28"
+      : creators.length === 2
+        ? "mx-auto grid-cols-2 max-w-60 gap-8"
+        : "grid-cols-3 gap-2";
+  const animationKey = displayOrder
+    .map((creator) => `${creator.id}:${creator.voteCount}`)
+    .join("|");
 
   return (
-    <section aria-labelledby="top-creators-title" className="rounded-[20px] bg-white px-4 py-6 shadow-[0_8px_30px_rgba(43,43,43,0.06)]">
+    <section aria-labelledby="top-creators-title" className="animate-top-creators rounded-[20px] bg-white px-4 py-6 shadow-[0_8px_30px_rgba(43,43,43,0.06)]">
       <h2 id="top-creators-title" className="mb-5 text-center font-display text-sm font-semibold uppercase tracking-[0.14em] text-[#747474]">
         Top creators
       </h2>
-      <div className="grid grid-cols-3 items-end gap-2">
+      <div key={animationKey} className={`animate-top-ranking grid items-end ${gridClass}`}>
         {displayOrder.map((creator) => {
           const isWinner = creator.id === creators[0]?.id;
           const rank = creators.findIndex((item) => item.id === creator.id) + 1;
@@ -37,7 +47,7 @@ export function TopCreators({ creators, changedIds }: TopCreatorsProps) {
                   {rank}
                 </span>
                 <span className={`absolute -bottom-2 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-[#2B2B2B] px-2.5 py-1 text-[10px] font-semibold text-white ${changedIds.has(creator.id) ? "count-pulse" : ""}`}>
-                  {creator.voteCount.toLocaleString()} votes
+                  {creator.voteCount.toLocaleString()} {creator.voteCount === 1 ? "vote" : "votes"}
                 </span>
               </div>
               <p className="mt-4 w-full truncate text-center font-display text-xs font-bold text-[#2B2B2B]">

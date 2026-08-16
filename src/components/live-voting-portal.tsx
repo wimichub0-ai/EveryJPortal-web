@@ -77,6 +77,7 @@ export function LiveVotingPortal({ creators, initialCounts, votingOpen }: LiveVo
     () =>
       creators
         .map((creator) => ({ ...creator, voteCount: counts[creator.id] ?? 0 }))
+        .filter((creator) => creator.voteCount > 0)
         .sort((a, b) => b.voteCount - a.voteCount || a.display_order - b.display_order)
         .slice(0, 3),
     [counts, creators],

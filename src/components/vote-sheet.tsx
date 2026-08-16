@@ -25,6 +25,8 @@ type VoteStep =
   | "ALREADY_VOTED"
   | "CLOSED";
 
+type ContactMode = "email" | "phone";
+
 type VoteSheetProps = {
   creator: Creator;
   votingOpen: boolean;
@@ -33,7 +35,9 @@ type VoteSheetProps = {
 };
 
 const RESEND_SECONDS = 60;
+const MAX_SENDS_PER_CONTACT = 5;
 const resendDeadlines = new Map<string, number>();
+const sendCounts = new Map<string, number>();
 
 function normalizedEmail(value: string) {
   return value.trim().toLowerCase();
@@ -47,8 +51,28 @@ function isValidEmail(value: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail(value));
 }
 
-function secondsUntilResend(email: string) {
-  const deadline = resendDeadlines.get(normalizedEmail(email)) ?? 0;
+function contactMode(value: string): ContactMode | null {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (trimmed.includes("@")) return "email";
+  if (/^\+?[\d\s-]+$/.test(trimmed)) return "phone";
+  return null;
+}
+
+function normalizedPhone(value: string) {
+  const compact = value.replace(/[\s-]/g, "");
+  if (/^0\d{10}$/.test(compact)) return `+234${compact.slice(1)}`;
+  if (/^234\d{10}$/.test(compact)) return `+${compact}`;
+  if (/^\+234\d{10}$/.test(compact)) return compact;
+  return null;
+}
+
+function normalizedContact(value: string, mode: ContactMode) {
+  return mode === "email" ? normalizedEmail(value) : normalizedPhone(value);
+}
+
+function secondsUntilResend(contact: string) {
+  const deadline = resendDeadlines.get(contact) ?? 0;
   return Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
 }
 
@@ -69,10 +93,11 @@ function isRateLimitError(error: unknown) {
 export function VoteSheet({ creator, votingOpen, onClose, onVoteResolved }: VoteSheetProps) {
   const [step, setStep] = useState<VoteStep>(votingOpen ? "CHECKING" : "CLOSED");
   const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
+  const [contact, setContact] = useState("");
+  const [verificationMode, setVerificationMode] = useState<ContactMode | null>(null);
   const [digits, setDigits] = useState(["", "", "", "", "", ""]);
   const [error, setError] = useState("");
-  const [emailError, setEmailError] = useState("");
+  const [contactError, setContactError] = useState("");
   const [inFlight, setInFlight] = useState(false);
   const [newTotal, setNewTotal] = useState(0);
   const [countdown, setCountdown] = useState(0);
@@ -99,7 +124,7 @@ export function VoteSheet({ creator, votingOpen, onClose, onVoteResolved }: Vote
       }
       if (message.includes("This email domain is not allowed")) {
         setStep("DETAILS");
-        setEmailError(COPY.blockedEmail);
+        setContactError(COPY.blockedEmail);
         return true;
       }
       return false;
@@ -153,7 +178,7 @@ export function VoteSheet({ creator, votingOpen, onClose, onVoteResolved }: Vote
           "Voter",
       );
       setName(metadataName);
-      setEmail(user.email ?? "");
+      setContact(user.phone ?? user.email ?? "");
       requestRef.current = false;
       setInFlight(false);
       setStep("CONFIRM");
@@ -182,42 +207,65 @@ export function VoteSheet({ creator, votingOpen, onClose, onVoteResolved }: Vote
   }, [creator, safelyClose]);
 
   useEffect(() => {
-    const update = () => setCountdown(secondsUntilResend(email));
+    const mode = contactMode(contact);
+    const key = mode ? normalizedContact(contact, mode) : null;
+    const update = () => setCountdown(key ? secondsUntilResend(key) : 0);
     update();
     const interval = window.setInterval(update, 1000);
     return () => window.clearInterval(interval);
-  }, [creator, email]);
+  }, [creator, contact]);
 
   const validateDetails = () => {
     setError("");
-    setEmailError("");
+    setContactError("");
     if (!name.trim()) {
       setError(COPY.requiredName);
       return false;
     }
-    if (!isValidEmail(email)) {
-      setEmailError(COPY.invalidEmail);
-      return false;
+    const mode = contactMode(contact);
+    if (!mode) {
+      setContactError(COPY.invalidContact);
+      return null;
     }
-    if (BLOCKED_EMAIL_DOMAINS.has(emailDomain(email))) {
-      setEmailError(COPY.blockedEmail);
-      return false;
+    if (mode === "email") {
+      if (!isValidEmail(contact)) {
+        setContactError(COPY.invalidEmail);
+        return null;
+      }
+      if (BLOCKED_EMAIL_DOMAINS.has(emailDomain(contact))) {
+        setContactError(COPY.blockedEmail);
+        return null;
+      }
     }
-    return true;
+    const normalized = normalizedContact(contact, mode);
+    if (!normalized) {
+      setContactError(mode === "phone" ? COPY.invalidPhone : COPY.invalidEmail);
+      return null;
+    }
+    return { mode, normalized };
   };
 
   const sendCode = async (stayOnCode = false) => {
-    if (requestRef.current || !validateDetails()) return;
-    if (secondsUntilResend(email) > 0) return;
+    if (requestRef.current) return;
+    const validated = validateDetails();
+    if (!validated) return;
+    const { mode, normalized } = validated;
+    if (secondsUntilResend(normalized) > 0) return;
+    if ((sendCounts.get(normalized) ?? 0) >= MAX_SENDS_PER_CONTACT) {
+      setError(COPY.sendLimitReached);
+      return;
+    }
 
     requestRef.current = true;
     setInFlight(true);
-    const cleanEmail = normalizedEmail(email);
-    setEmail(cleanEmail);
-    const { error: otpError } = await createClient().auth.signInWithOtp({
-      email: cleanEmail,
-      options: { shouldCreateUser: true, data: { full_name: name.trim() } },
-    });
+    setContact(normalized);
+    setVerificationMode(mode);
+    sendCounts.set(normalized, (sendCounts.get(normalized) ?? 0) + 1);
+    const options = { shouldCreateUser: true, data: { full_name: name.trim() } };
+    const { error: otpError } =
+      mode === "email"
+        ? await createClient().auth.signInWithOtp({ email: normalized, options })
+        : await createClient().auth.signInWithOtp({ phone: normalized, options });
     requestRef.current = false;
     setInFlight(false);
 
@@ -226,7 +274,7 @@ export function VoteSheet({ creator, votingOpen, onClose, onVoteResolved }: Vote
       return;
     }
 
-    resendDeadlines.set(cleanEmail, Date.now() + RESEND_SECONDS * 1000);
+    resendDeadlines.set(normalized, Date.now() + RESEND_SECONDS * 1000);
     setCountdown(RESEND_SECONDS);
     setDigits(["", "", "", "", "", ""]);
     setError("");
@@ -249,11 +297,16 @@ export function VoteSheet({ creator, votingOpen, onClose, onVoteResolved }: Vote
     requestRef.current = true;
     setInFlight(true);
     setError("");
-    const { error: verifyError } = await createClient().auth.verifyOtp({
-      email: normalizedEmail(email),
-      token,
-      type: "email",
-    });
+    if (!verificationMode) {
+      requestRef.current = false;
+      setInFlight(false);
+      setError(COPY.genericError);
+      return;
+    }
+    const { error: verifyError } =
+      verificationMode === "email"
+        ? await createClient().auth.verifyOtp({ email: contact, token, type: "email" })
+        : await createClient().auth.verifyOtp({ phone: contact, token, type: "sms" });
 
     if (verifyError) {
       requestRef.current = false;
@@ -341,6 +394,13 @@ export function VoteSheet({ creator, votingOpen, onClose, onVoteResolved }: Vote
             : step === "CLOSED"
               ? COPY.closedTitle
               : COPY.checking;
+  const detectedContactMode = contactMode(contact);
+  const contactHelper =
+    detectedContactMode === "email"
+      ? COPY.emailHelper
+      : detectedContactMode === "phone"
+        ? COPY.phoneHelper
+        : COPY.contactHelper;
 
   const supportButtons = (
     <div className="space-y-3">
@@ -431,22 +491,35 @@ export function VoteSheet({ creator, votingOpen, onClose, onVoteResolved }: Vote
               />
             </label>
             <label className="block text-sm font-semibold text-[#2B2B2B]">
-              {COPY.emailLabel}
+              {COPY.contactLabel}
               <input
-                value={email}
+                value={contact}
                 onChange={(event) => {
-                  setEmail(event.currentTarget.value);
-                  setEmailError("");
+                  const nextContact = event.currentTarget.value;
+                  const nextMode = contactMode(nextContact);
+                  setContact(nextContact);
+                  if (nextContact.trim() && !nextMode) {
+                    setContactError(COPY.invalidContact);
+                  } else if (
+                    nextMode === "email" &&
+                    isValidEmail(nextContact) &&
+                    BLOCKED_EMAIL_DOMAINS.has(emailDomain(nextContact))
+                  ) {
+                    setContactError(COPY.blockedEmail);
+                  } else {
+                    setContactError("");
+                  }
                 }}
                 required
-                type="email"
-                inputMode="email"
-                autoComplete="email"
-                placeholder={COPY.emailPlaceholder}
-                aria-invalid={Boolean(emailError)}
+                type="text"
+                inputMode="text"
+                autoComplete="username"
+                placeholder={COPY.contactPlaceholder}
+                aria-invalid={Boolean(contactError)}
                 className="mt-2 h-12 w-full rounded-xl border border-black/15 bg-white px-4 text-base font-normal outline-none transition focus:border-[#F2A93B] focus:ring-3 focus:ring-[#F2A93B]/15"
               />
-              {emailError && <span className="mt-2 block text-xs font-normal text-red-600">{emailError}</span>}
+              <span className="mt-2 block text-xs font-normal text-[#777]">{contactHelper}</span>
+              {contactError && <span className="mt-1.5 block text-xs font-normal text-red-600">{contactError}</span>}
             </label>
             {error && <p className="text-sm text-red-600" role="alert">{error}</p>}
             <button
@@ -461,7 +534,9 @@ export function VoteSheet({ creator, votingOpen, onClose, onVoteResolved }: Vote
 
         {step === "CODE" && (
           <form onSubmit={handleCodeSubmit} className="mt-5">
-            <p className="text-sm leading-6 text-[#707070]">{COPY.codeSubtext(email)}</p>
+            <p className="text-sm leading-6 text-[#707070]">
+              {COPY.codeSubtext(contact, verificationMode ?? "email")}
+            </p>
             <div className="mt-5 grid grid-cols-6 gap-2" aria-label="6-digit verification code">
               {digits.map((digit, index) => (
                 <input
@@ -507,7 +582,7 @@ export function VoteSheet({ creator, votingOpen, onClose, onVoteResolved }: Vote
                 }}
                 className="font-semibold text-[#5F5F5F] underline-offset-4 hover:underline"
               >
-                {COPY.changeEmail}
+                {COPY.changeContact}
               </button>
             </div>
           </form>
