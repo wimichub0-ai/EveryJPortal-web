@@ -18,7 +18,6 @@ import { BLOCKED_EMAIL_DOMAINS, VOTE_FLOW_COPY as COPY } from "@/lib/vote-flow-c
 
 type VoteStep =
   | "CHECKING"
-  | "CONFIRM"
   | "DETAILS"
   | "CODE"
   | "SUCCESS"
@@ -160,7 +159,8 @@ export function VoteSheet({ creator, votingOpen, onClose, onVoteResolved }: Vote
     const checkSession = async () => {
       requestRef.current = true;
       setInFlight(true);
-      const { data } = await createClient().auth.getSession();
+      const supabase = createClient();
+      const { data } = await supabase.auth.getSession();
       if (cancelled) return;
 
       if (!data.session) {
@@ -170,18 +170,29 @@ export function VoteSheet({ creator, votingOpen, onClose, onVoteResolved }: Vote
         return;
       }
 
-      const user = data.session.user;
-      const metadataName = String(
-        user.user_metadata.full_name ??
-          user.user_metadata.name ??
-          user.email?.split("@")[0] ??
-          "Voter",
-      );
-      setName(metadataName);
-      setContact(user.phone ?? user.email ?? "");
+      const { data: existingVote, error: voteLookupError } = await supabase
+        .from("votes")
+        .select("id")
+        .eq("user_id", data.session.user.id)
+        .maybeSingle();
+      if (cancelled) return;
+
+      if (existingVote) {
+        onVoteResolved(creator.id);
+        requestRef.current = false;
+        setInFlight(false);
+        setStep("ALREADY_VOTED");
+        return;
+      }
+
+      if (voteLookupError) setError(COPY.genericError);
+      const { error: signOutError } = await supabase.auth.signOut();
+      if (cancelled) return;
+
+      if (signOutError) setError(COPY.genericError);
       requestRef.current = false;
       setInFlight(false);
-      setStep("CONFIRM");
+      setStep("DETAILS");
     };
 
     void checkSession();
@@ -189,7 +200,7 @@ export function VoteSheet({ creator, votingOpen, onClose, onVoteResolved }: Vote
       cancelled = true;
       requestRef.current = false;
     };
-  }, [votingOpen]);
+  }, [creator.id, onVoteResolved, votingOpen]);
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
@@ -352,16 +363,6 @@ export function VoteSheet({ creator, votingOpen, onClose, onVoteResolved }: Vote
     void verifyAndVote();
   };
 
-  const confirmReturningVote = async () => {
-    if (requestRef.current) return;
-    requestRef.current = true;
-    setInFlight(true);
-    setError("");
-    await castVote(name);
-    requestRef.current = false;
-    setInFlight(false);
-  };
-
   const shareCreator = async () => {
     const url = `${window.location.origin}/c/${creator.slug}`;
     if (navigator.share) {
@@ -385,8 +386,6 @@ export function VoteSheet({ creator, votingOpen, onClose, onVoteResolved }: Vote
       ? COPY.detailsTitle(creator.name)
       : step === "CODE"
         ? COPY.codeTitle
-        : step === "CONFIRM"
-          ? COPY.confirmTitle
         : step === "SUCCESS"
           ? COPY.successTitle
           : step === "ALREADY_VOTED"
@@ -448,31 +447,6 @@ export function VoteSheet({ creator, votingOpen, onClose, onVoteResolved }: Vote
         {step === "CHECKING" && (
           <div className="flex min-h-56 items-center justify-center">
             <LoaderCircle className="h-8 w-8 animate-spin text-[#F2A93B]" aria-hidden="true" />
-          </div>
-        )}
-
-        {step === "CONFIRM" && (
-          <div className="mt-6 text-center">
-            <p className="mx-auto max-w-xs text-sm leading-6 text-[#707070]">
-              {COPY.confirmSubtext(creator.name)}
-            </p>
-            {error && <p className="mt-3 text-sm text-red-600" role="alert">{error}</p>}
-            <button
-              type="button"
-              disabled={inFlight}
-              onClick={() => void confirmReturningVote()}
-              className="mt-6 min-h-12 w-full rounded-full bg-[#F2A93B] px-5 font-display text-sm font-bold text-white transition hover:bg-[#E99C29] disabled:cursor-not-allowed disabled:bg-[#D8D8D8] disabled:text-[#777]"
-            >
-              {inFlight ? COPY.confirmingVote : COPY.confirmButton(creator.name)}
-            </button>
-            <button
-              type="button"
-              disabled={inFlight}
-              onClick={safelyClose}
-              className="mt-4 text-sm font-semibold text-[#666] underline-offset-4 hover:underline disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {COPY.cancel}
-            </button>
           </div>
         )}
 

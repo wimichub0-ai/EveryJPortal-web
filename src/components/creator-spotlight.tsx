@@ -47,7 +47,7 @@ export function CreatorSpotlight({
         votingOpen={votingOpen}
         hasVoted={hasVoted}
         countChanged={changedIds.has(creator.id)}
-        supportLine={`Support ${creator.name} in House Of Creator with a vote — and subscribe to the YouTube channel.`}
+        supportLine={`Support ${creator.name} in House Of Creators with a vote — and subscribe to the YouTube channel.`}
         onOpenVideo={setVideoCreator}
         onVote={openVoteSheet}
       />

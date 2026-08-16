@@ -2,7 +2,7 @@ import { ImageResponse } from "next/og";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
-export const alt = "Everything Jos House Of Creator voting profile";
+export const alt = "Everything Jos House Of Creators voting profile";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
@@ -152,10 +152,10 @@ export default async function OpenGraphImage({ params }: OgImageProps) {
           {name}
         </div>
         <div style={{ marginTop: 25, fontSize: 38, fontWeight: 800, color: "#F2A93B" }}>
-          House Of Creator
+          House Of Creators
         </div>
         <div style={{ marginTop: 18, fontSize: 27, lineHeight: 1.25, color: "#777777" }}>
-          Vote for me on Everything Jos
+          Vote for me on House Of Creators
         </div>
       </div>
     </div>,

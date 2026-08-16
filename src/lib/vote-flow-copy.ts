@@ -14,12 +14,6 @@ export const BLOCKED_EMAIL_DOMAINS = new Set([
 export const VOTE_FLOW_COPY = {
   close: "Close voting sheet",
   checking: "Checking your voting status…",
-  confirmTitle: "Confirm your vote",
-  confirmSubtext: (name: string) =>
-    `You get one vote and it's final. Vote for ${name}?`,
-  confirmButton: (name: string) => `Yes, vote for ${name}`,
-  confirmingVote: "Counting your vote…",
-  cancel: "Cancel",
   detailsTitle: (name: string) => `Voting for ${name}`,
   detailsSubtext: (name: string) =>
     `You're voting for ${name}. This is a free account to make your vote count.`,
@@ -63,8 +57,8 @@ export const VOTE_FLOW_COPY = {
   share: (name: string) => `Share ${name}'s link`,
   copied: "Link copied!",
   shareTitle: (name: string) =>
-    `Support ${name} in House Of Creator with a vote 🗳️`,
+    `Support ${name} in House Of Creators with a vote 🗳️`,
   shareText: (name: string) =>
-    `Support ${name} in House Of Creator with a vote 🗳️`,
+    `Support ${name} in House Of Creators with a vote 🗳️`,
   votedButton: "You've voted ✓",
 } as const;
