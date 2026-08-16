@@ -4,12 +4,13 @@ import {
   TikTokIcon,
   YouTubeIcon,
 } from "@/components/social-icons";
+import { EVERYTHING_JOS_SOCIAL_LINKS } from "@/lib/site-constants";
 
-const socialLinks = [
-  { label: "Instagram", icon: InstagramIcon },
-  { label: "TikTok", icon: TikTokIcon },
-  { label: "YouTube", icon: YouTubeIcon },
-];
+const socialIcons = {
+  Instagram: InstagramIcon,
+  TikTok: TikTokIcon,
+  YouTube: YouTubeIcon,
+} as const;
 
 export function Footer() {
   return (
@@ -33,16 +34,21 @@ export function Footer() {
       </div>
 
       <nav className="mt-6 flex items-center justify-center gap-2" aria-label="Everything Jos social links">
-        {socialLinks.map(({ label, icon: Icon }) => (
+        {EVERYTHING_JOS_SOCIAL_LINKS.map(({ platform, href, ariaLabel }) => {
+          const Icon = socialIcons[platform];
+          return (
           <a
-            key={label}
-            href="#"
-            aria-label={label}
+            key={platform}
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={ariaLabel}
             className="flex h-11 w-11 items-center justify-center rounded-full text-[#2B2B2B] transition hover:bg-black/5 hover:text-[#D98912] active:scale-95"
           >
             <Icon />
           </a>
-        ))}
+          );
+        })}
       </nav>
 
       <div className="mt-9 flex items-center justify-center gap-2 text-[11px] text-[#8A8A8A]">
