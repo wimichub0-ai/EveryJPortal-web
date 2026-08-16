@@ -14,6 +14,7 @@ type CreatorCardProps = {
   votingOpen: boolean;
   hasVoted: boolean;
   countChanged: boolean;
+  supportLine?: string;
   onOpenVideo: (creator: Creator) => void;
   onVote: (creator: Creator) => void;
 };
@@ -25,6 +26,7 @@ export function CreatorCard({
   votingOpen,
   hasVoted,
   countChanged,
+  supportLine,
   onOpenVideo,
   onVote,
 }: CreatorCardProps) {
@@ -77,6 +79,10 @@ export function CreatorCard({
             style={{ width: `${percentage}%` }}
           />
         </div>
+
+        {supportLine && (
+          <p className="mt-5 text-sm leading-6 text-[#666]">{supportLine}</p>
+        )}
 
         <div className="mt-5 space-y-3">
           {creator.youtube_channel_url && <YouTubeButton href={creator.youtube_channel_url} />}

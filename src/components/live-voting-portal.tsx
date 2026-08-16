@@ -1,11 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { CreatorCard } from "@/components/creator-card";
 import { TopCreators } from "@/components/top-creators";
 import { VideoModal } from "@/components/video-modal";
 import { VoteSheet } from "@/components/vote-sheet";
-import { createClient } from "@/lib/supabase/client";
+import { useLiveVoteCounts } from "@/hooks/use-live-vote-counts";
 import type { Creator, VoteCount } from "@/lib/types";
 
 type LiveVotingPortalProps = {
@@ -15,64 +15,11 @@ type LiveVotingPortalProps = {
 };
 
 export function LiveVotingPortal({ creators, initialCounts, votingOpen }: LiveVotingPortalProps) {
-  const [counts, setCounts] = useState<Record<string, number>>(() =>
-    Object.fromEntries(initialCounts.map((item) => [item.creator_id, item.vote_count])),
-  );
+  const { counts, changedIds, totalVotes, setOptimisticCount } =
+    useLiveVoteCounts(creators, initialCounts);
   const [selectedCreator, setSelectedCreator] = useState<Creator | null>(null);
   const [voteCreator, setVoteCreator] = useState<Creator | null>(null);
   const [hasVoted, setHasVoted] = useState(false);
-  const [changedIds, setChangedIds] = useState<Set<string>>(new Set());
-  const countsRef = useRef(counts);
-  const clearPulseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const refreshCounts = useCallback(async () => {
-    const { data, error } = await createClient().rpc("get_vote_counts");
-    if (error || !data) return;
-
-    const nextCounts = Object.fromEntries(
-      (data as VoteCount[]).map((item) => [item.creator_id, Number(item.vote_count)]),
-    );
-
-    const changed = new Set(
-      creators
-        .filter(
-          (creator) =>
-            (countsRef.current[creator.id] ?? 0) !== (nextCounts[creator.id] ?? 0),
-        )
-        .map((creator) => creator.id),
-    );
-
-    countsRef.current = nextCounts;
-    setCounts(nextCounts);
-    if (changed.size) {
-      setChangedIds(changed);
-      if (clearPulseTimer.current) clearTimeout(clearPulseTimer.current);
-      clearPulseTimer.current = setTimeout(() => setChangedIds(new Set()), 650);
-    }
-  }, [creators]);
-
-  useEffect(() => {
-    const supabase = createClient();
-    const channel = supabase
-      .channel("public-vote-counts")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "votes" },
-        () => void refreshCounts(),
-      )
-      .subscribe();
-
-    return () => {
-      if (clearPulseTimer.current) clearTimeout(clearPulseTimer.current);
-      void supabase.removeChannel(channel);
-    };
-  }, [refreshCounts]);
-
-  const totalVotes = useMemo(
-    () => creators.reduce((total, creator) => total + (counts[creator.id] ?? 0), 0),
-    [counts, creators],
-  );
-
   const rankedCreators = useMemo(
     () =>
       creators
@@ -92,13 +39,8 @@ export function LiveVotingPortal({ creators, initialCounts, votingOpen }: LiveVo
     setHasVoted(true);
     if (newTotal === undefined) return;
 
-    const nextCounts = { ...countsRef.current, [creatorId]: newTotal };
-    countsRef.current = nextCounts;
-    setCounts(nextCounts);
-    setChangedIds(new Set([creatorId]));
-    if (clearPulseTimer.current) clearTimeout(clearPulseTimer.current);
-    clearPulseTimer.current = setTimeout(() => setChangedIds(new Set()), 650);
-  }, []);
+    setOptimisticCount(creatorId, newTotal);
+  }, [setOptimisticCount]);
 
   return (
     <>

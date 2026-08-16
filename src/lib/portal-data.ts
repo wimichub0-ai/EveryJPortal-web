@@ -38,3 +38,33 @@ export const getPortalData = cache(async () => {
     error: Boolean(settingsResult.error || creatorsResult.error || countsResult.error),
   };
 });
+
+export const getCreatorPageData = cache(async (slug: string) => {
+  const supabase = createClient();
+  const [settingsResult, creatorResult, countsResult] = await Promise.all([
+    supabase
+      .from("settings")
+      .select("campaign_title, campaign_subtitle, voting_open")
+      .eq("id", 1)
+      .maybeSingle(),
+    supabase
+      .from("creators")
+      .select(
+        "id, name, slug, tagline, photo_url, youtube_video_id, youtube_channel_url, display_order, is_active",
+      )
+      .eq("slug", slug)
+      .eq("is_active", true)
+      .maybeSingle(),
+    supabase.rpc("get_vote_counts"),
+  ]);
+
+  return {
+    settings: (settingsResult.data as PortalSettings | null) ?? fallbackSettings,
+    creator: (creatorResult.data as Creator | null) ?? null,
+    counts:
+      (countsResult.data as VoteCount[] | null)?.map((count) => ({
+        ...count,
+        vote_count: Number(count.vote_count),
+      })) ?? [],
+  };
+});
