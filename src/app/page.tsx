@@ -24,13 +24,13 @@ export async function generateMetadata(): Promise<Metadata> {
       description: settings.campaign_subtitle,
       type: "website",
       siteName: "Everything Jos",
-      images: [{ url: "/og.png", width: 1733, height: 909, alt: settings.campaign_title }],
+      images: [{ url: "/og.png?v=73d75c", width: 1731, height: 909, alt: settings.campaign_title }],
     },
     twitter: {
       card: "summary_large_image",
       title: settings.campaign_title,
       description: settings.campaign_subtitle,
-      images: ["/og.png"],
+      images: ["/og.png?v=73d75c"],
     },
   };
 }
