@@ -10,8 +10,8 @@ const chakraPetch = Chakra_Petch({
 });
 
 export const metadata: Metadata = {
-  title: "Everything Jos Voting Portal",
-  description: "Vote for your favourite Everything Jos creator.",
+  title: "House Of Creators Voting Portal",
+  description: "Vote for your favourite house creator.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

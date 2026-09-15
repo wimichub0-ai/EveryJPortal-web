@@ -6,6 +6,10 @@
 }
 
 @theme inline {
+  --color-brand: #73D75C;
+  --color-brand-soft: #E5F8DF;
+  --color-brand-pale: #F2FBEF;
+  --color-brand-ink: #287A1D;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-display: var(--font-chakra-petch);
@@ -33,18 +37,18 @@ a {
 
 button:focus-visible,
 a:focus-visible {
-  outline: 3px solid rgba(242, 169, 59, 0.45);
+  outline: 3px solid rgba(115, 215, 92, 0.45);
   outline-offset: 3px;
 }
 
 @keyframes count-pulse {
   0% { scale: 1; }
-  35% { scale: 1.13; color: #d98912; }
+  35% { scale: 1.13; color: #287A1D; }
   100% { scale: 1; }
 }
 
 .count-pulse {
-  animation: count-pulse 500ms ease-out;
+  animation: count-pulse 350ms ease-out;
 }
 
 @keyframes top-creators-in {

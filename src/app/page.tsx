@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
+import { IntroSplash } from "@/components/intro-splash";
 import { Footer } from "@/components/footer";
 import { Hero } from "@/components/hero";
 import { LiveVotingPortal } from "@/components/live-voting-portal";
@@ -35,10 +36,11 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function Home() {
-  const { creators, counts, settings, error } = await getPortalData();
+  const { creators, counts, settings, totalVotes, error } = await getPortalData();
 
   return (
     <main className="min-h-screen bg-[#F5F5F5] px-4 py-8 text-[#2B2B2B] sm:py-12">
+      <IntroSplash title={settings.campaign_title} />
       <div className="mx-auto flex w-full max-w-md flex-col gap-8">
         <Hero
           title={settings.campaign_title}
@@ -59,6 +61,8 @@ export default async function Home() {
             creators={creators}
             initialCounts={counts}
             votingOpen={settings.voting_open}
+            votingEndsAt={settings.voting_ends_at}
+            initialTotal={totalVotes}
           />
         )}
 

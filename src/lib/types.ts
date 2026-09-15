@@ -14,6 +14,7 @@ export type PortalSettings = {
   campaign_title: string;
   campaign_subtitle: string;
   voting_open: boolean;
+  voting_ends_at: string | null;
 };
 
 export type VoteCount = {

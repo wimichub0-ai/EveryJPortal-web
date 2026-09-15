@@ -118,8 +118,8 @@ export default async function OpenGraphImage({ params }: OgImageProps) {
               alignItems: "center",
               justifyContent: "center",
               borderRadius: 999,
-              background: "#F2A93B",
-              color: "white",
+              background: "#73D75C",
+              color: "#173512",
               fontSize: 96,
               fontWeight: 800,
               letterSpacing: "-0.04em",
@@ -139,7 +139,7 @@ export default async function OpenGraphImage({ params }: OgImageProps) {
           maxWidth: 540,
         }}
       >
-        <div style={{ width: 90, height: 8, borderRadius: 99, background: "#F2A93B" }} />
+        <div style={{ width: 90, height: 8, borderRadius: 99, background: "#73D75C" }} />
         <div
           style={{
             marginTop: 30,
@@ -151,7 +151,7 @@ export default async function OpenGraphImage({ params }: OgImageProps) {
         >
           {name}
         </div>
-        <div style={{ marginTop: 25, fontSize: 38, fontWeight: 800, color: "#F2A93B" }}>
+        <div style={{ marginTop: 25, fontSize: 38, fontWeight: 800, color: "#287A1D" }}>
           House Of Creators
         </div>
         <div style={{ marginTop: 18, fontSize: 27, lineHeight: 1.25, color: "#777777" }}>

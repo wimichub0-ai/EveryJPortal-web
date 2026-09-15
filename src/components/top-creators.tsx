@@ -1,5 +1,6 @@
 "use client";
 
+import { Reveal } from "@/components/reveal";
 import { CreatorImage } from "@/components/creator-image";
 import type { Creator } from "@/lib/types";
 
@@ -23,23 +24,20 @@ export function TopCreators({ creators, changedIds }: TopCreatorsProps) {
       : creators.length === 2
         ? "mx-auto grid-cols-2 max-w-60 gap-8"
         : "grid-cols-3 gap-2";
-  const animationKey = displayOrder
-    .map((creator) => `${creator.id}:${creator.voteCount}`)
-    .join("|");
 
   return (
-    <section aria-labelledby="top-creators-title" className="animate-top-creators rounded-[20px] bg-white px-4 py-6 shadow-[0_8px_30px_rgba(43,43,43,0.06)]">
+    <section aria-labelledby="top-creators-title" className="rounded-[20px] bg-white px-4 py-6 shadow-[0_8px_30px_rgba(43,43,43,0.06)]">
       <h2 id="top-creators-title" className="mb-5 text-center font-display text-sm font-semibold uppercase tracking-[0.14em] text-[#747474]">
         Top creators
       </h2>
-      <div key={animationKey} className={`animate-top-ranking grid items-end ${gridClass}`}>
-        {displayOrder.map((creator) => {
+      <div className={`grid items-end ${gridClass}`}>
+        {displayOrder.map((creator, index) => {
           const isWinner = creator.id === creators[0]?.id;
           const rank = creators.findIndex((item) => item.id === creator.id) + 1;
 
           return (
-            <div key={creator.id} className={`flex min-w-0 flex-col items-center ${isWinner ? "pb-2" : ""}`}>
-              <div className={`relative rounded-full border-[3px] bg-[#E8E8E8] shadow-sm ${isWinner ? "h-24 w-24 border-[#F2A93B]" : "h-20 w-20 border-white"}`}>
+            <Reveal key={creator.id} delay={index * 0.06} className={`flex min-w-0 flex-col items-center ${isWinner ? "pb-2" : ""}`}>
+              <div className={`relative rounded-full border-[3px] bg-[#E8E8E8] shadow-sm ${isWinner ? "h-24 w-24 border-[#73D75C]" : "h-20 w-20 border-white"}`}>
                 <div className="relative h-full w-full overflow-hidden rounded-full">
                   <CreatorImage creator={creator} sizes={isWinner ? "96px" : "80px"} />
                 </div>
@@ -53,7 +51,7 @@ export function TopCreators({ creators, changedIds }: TopCreatorsProps) {
               <p className="mt-4 w-full truncate text-center font-display text-xs font-bold text-[#2B2B2B]">
                 {creator.name}
               </p>
-            </div>
+            </Reveal>
           );
         })}
       </div>

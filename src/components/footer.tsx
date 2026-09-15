@@ -17,7 +17,7 @@ export function Footer() {
     <footer className="mx-auto w-full max-w-md border-t border-[#2B2B2B]/10 px-2 pb-6 pt-10 text-center">
       <div className="flex items-center justify-center gap-3 text-left">
         <Image
-          src="/logo.png"
+          src="/everythingjos.png"
           alt="Everything Jos logo"
           width={48}
           height={48}
@@ -43,7 +43,7 @@ export function Footer() {
             target="_blank"
             rel="noopener noreferrer"
             aria-label={ariaLabel}
-            className="flex h-11 w-11 items-center justify-center rounded-full text-[#2B2B2B] transition hover:bg-black/5 hover:text-[#D98912] active:scale-95"
+            className="flex h-11 w-11 items-center justify-center rounded-full text-[#2B2B2B] transition hover:bg-black/5 hover:text-[#287A1D] active:scale-95"
           >
             <Icon />
           </a>

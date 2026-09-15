@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
+import { VotingStats, useVotingDeadline } from "@/components/voting-stats";
 import { CreatorCard } from "@/components/creator-card";
 import { TopCreators } from "@/components/top-creators";
 import { VideoModal } from "@/components/video-modal";
@@ -12,11 +13,14 @@ type LiveVotingPortalProps = {
   creators: Creator[];
   initialCounts: VoteCount[];
   votingOpen: boolean;
+  votingEndsAt: string | null;
+  initialTotal: number | null;
 };
 
-export function LiveVotingPortal({ creators, initialCounts, votingOpen }: LiveVotingPortalProps) {
+export function LiveVotingPortal({ creators, initialCounts, votingOpen: configuredOpen, votingEndsAt, initialTotal }: LiveVotingPortalProps) {
+  const { votingOpen, remaining } = useVotingDeadline(configuredOpen, votingEndsAt);
   const { counts, changedIds, totalVotes, setOptimisticCount } =
-    useLiveVoteCounts(creators, initialCounts);
+    useLiveVoteCounts(creators, initialCounts, initialTotal);
   const [selectedCreator, setSelectedCreator] = useState<Creator | null>(null);
   const [voteCreator, setVoteCreator] = useState<Creator | null>(null);
   const [hasVoted, setHasVoted] = useState(false);
@@ -44,6 +48,7 @@ export function LiveVotingPortal({ creators, initialCounts, votingOpen }: LiveVo
 
   return (
     <>
+      <VotingStats totalVotes={totalVotes} votingOpen={votingOpen} remaining={remaining} />
       <TopCreators creators={rankedCreators} changedIds={changedIds} />
 
       <section aria-labelledby="creator-list-heading">
@@ -53,12 +58,13 @@ export function LiveVotingPortal({ creators, initialCounts, votingOpen }: LiveVo
 
         {creators.length ? (
           <div className="space-y-6">
-            {creators.map((creator) => (
+            {creators.map((creator, index) => (
               <CreatorCard
                 key={creator.id}
+                index={index}
                 creator={creator}
                 count={counts[creator.id] ?? 0}
-                totalVotes={totalVotes}
+                totalVotes={totalVotes ?? Object.values(counts).reduce((sum, count) => sum + count, 0)}
                 votingOpen={votingOpen}
                 hasVoted={hasVoted}
                 countChanged={changedIds.has(creator.id)}

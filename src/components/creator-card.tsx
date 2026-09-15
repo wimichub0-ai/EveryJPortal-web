@@ -1,5 +1,6 @@
 "use client";
 
+import { motion, useReducedMotion } from "framer-motion";
 import { Play } from "lucide-react";
 import { CreatorImage } from "@/components/creator-image";
 import { VoteButton } from "@/components/vote-button";
@@ -8,6 +9,7 @@ import { YouTubeMark } from "@/components/youtube-mark";
 import type { Creator } from "@/lib/types";
 
 type CreatorCardProps = {
+  index?: number;
   creator: Creator;
   count: number;
   totalVotes: number;
@@ -20,6 +22,7 @@ type CreatorCardProps = {
 };
 
 export function CreatorCard({
+  index = 0,
   creator,
   count,
   totalVotes,
@@ -30,11 +33,12 @@ export function CreatorCard({
   onOpenVideo,
   onVote,
 }: CreatorCardProps) {
+  const reduced = useReducedMotion();
   const percentage = totalVotes ? Math.min((count / totalVotes) * 100, 100) : 0;
   const canPlay = Boolean(creator.youtube_video_id);
 
   return (
-    <article className="overflow-hidden rounded-[20px] bg-white p-3 shadow-[0_8px_30px_rgba(43,43,43,0.07)]">
+    <motion.article initial={reduced ? false : { opacity: 0, y: 14 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.08 }} transition={{ duration: reduced ? 0 : 0.28, delay: reduced ? 0 : (index % 3) * 0.04 }} className="overflow-hidden rounded-[20px] bg-white p-3 shadow-[0_8px_30px_rgba(43,43,43,0.07)]">
       <button
         type="button"
         disabled={!canPlay}
@@ -75,7 +79,7 @@ export function CreatorCard({
 
         <div className="mt-5 h-2 overflow-hidden rounded-full bg-[#EEEEEE]" aria-label={`${percentage.toFixed(1)} percent of all votes`}>
           <div
-            className="h-full rounded-full bg-[#F2A93B] transition-[width] duration-700 ease-out"
+            className="h-full rounded-full bg-[#73D75C] transition-[width] duration-300 ease-out"
             style={{ width: `${percentage}%` }}
           />
         </div>
@@ -89,6 +93,6 @@ export function CreatorCard({
           <VoteButton creator={creator} votingOpen={votingOpen} hasVoted={hasVoted} onVote={onVote} />
         </div>
       </div>
-    </article>
+    </motion.article>
   );
 }
