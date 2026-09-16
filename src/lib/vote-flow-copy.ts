@@ -50,9 +50,5 @@ export const VOTE_FLOW_COPY = {
   subscribe: "Subscribe on YouTube",
   share: (name: string) => `Share ${name}'s link`,
   copied: "Link copied!",
-  shareTitle: (name: string) =>
-    `Support ${name} in House Of Creators with a vote 🗳️`,
-  shareText: (name: string) =>
-    `Support ${name} in House Of Creators with a vote 🗳️`,
   votedButton: "You've voted ✓",
 } as const;

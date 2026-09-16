@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ExternalLink, LoaderCircle, X } from "lucide-react";
+import { Check, LoaderCircle, X } from "lucide-react";
 import {
   type ClipboardEvent,
   type FormEvent,
@@ -11,6 +11,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { ShareCreatorButton } from "@/components/share-creator-button";
 import { CreatorImage } from "@/components/creator-image";
 import { YouTubeButton } from "@/components/youtube-button";
 import { createClient } from "@/lib/supabase/client";
@@ -78,7 +79,6 @@ export function VoteSheet({ creator, votingOpen, onClose, onVoteResolved }: Vote
   const [inFlight, setInFlight] = useState(false);
   const [newTotal, setNewTotal] = useState(0);
   const [countdown, setCountdown] = useState(0);
-  const [copied, setCopied] = useState(false);
   const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const requestRef = useRef(false);
@@ -319,24 +319,6 @@ export function VoteSheet({ creator, votingOpen, onClose, onVoteResolved }: Vote
     void verifyAndVote();
   };
 
-  const shareCreator = async () => {
-    const url = `${window.location.origin}/c/${creator.slug}`;
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: COPY.shareTitle(creator.name),
-          text: COPY.shareText(creator.name),
-          url,
-        });
-        return;
-      } catch (shareError) {
-        if (shareError instanceof DOMException && shareError.name === "AbortError") return;
-      }
-    }
-    await navigator.clipboard.writeText(url);
-    setCopied(true);
-  };
-
   const title =
     step === "DETAILS"
       ? COPY.detailsTitle(creator.name)
@@ -352,14 +334,7 @@ export function VoteSheet({ creator, votingOpen, onClose, onVoteResolved }: Vote
   const supportButtons = (
     <div className="space-y-3">
       {creator.youtube_channel_url && <YouTubeButton href={creator.youtube_channel_url} />}
-      <button
-        type="button"
-        onClick={() => void shareCreator()}
-        className="flex min-h-12 w-full items-center justify-center gap-2 rounded-full border border-[#2B2B2B]/25 bg-white px-5 font-display text-sm font-semibold text-[#2B2B2B] transition hover:border-[#2B2B2B] hover:bg-[#FAFAFA] active:scale-[0.99]"
-      >
-        <ExternalLink className="h-4 w-4" aria-hidden="true" />
-        {copied ? COPY.copied : COPY.share(creator.name)}
-      </button>
+      <ShareCreatorButton creator={creator} variant="vote-sheet" />
     </div>
   );
 

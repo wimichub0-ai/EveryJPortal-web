@@ -2,6 +2,7 @@
 
 import { motion, useReducedMotion } from "framer-motion";
 import { Play } from "lucide-react";
+import { ShareCreatorButton } from "@/components/share-creator-button";
 import { CreatorImage } from "@/components/creator-image";
 import { VoteButton } from "@/components/vote-button";
 import { YouTubeButton } from "@/components/youtube-button";
@@ -39,6 +40,7 @@ export function CreatorCard({
 
   return (
     <motion.article initial={reduced ? false : { opacity: 0, y: 14 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.08 }} transition={{ duration: reduced ? 0 : 0.28, delay: reduced ? 0 : (index % 3) * 0.04 }} className="overflow-hidden rounded-[20px] bg-white p-3 shadow-[0_8px_30px_rgba(43,43,43,0.07)]">
+      <div className="relative">
       <button
         type="button"
         disabled={!canPlay}
@@ -58,6 +60,8 @@ export function CreatorCard({
           YouTube
         </span>
       </button>
+      <ShareCreatorButton creator={creator} variant="corner-on-media" />
+      </div>
 
       <div className="px-2 pb-2 pt-5">
         <div className="flex items-start justify-between gap-4">
