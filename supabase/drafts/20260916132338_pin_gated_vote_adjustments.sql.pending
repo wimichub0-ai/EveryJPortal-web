@@ -1,0 +1,203 @@
+-- DRAFT: requires approval of NULL-on-incorrect-PIN behavior and inspection of
+-- any existing legacy adjustment log before promotion to supabase/migrations.
+BEGIN;
+
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- Never silently replace or invent historical audit records from an older schema.
+DO $$
+BEGIN
+  IF to_regclass('public.vote_adjustments') IS NOT NULL AND (
+    NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public'
+      AND table_name = 'vote_adjustments' AND column_name = 'id' AND data_type = 'uuid')
+    OR NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_schema = 'public'
+      AND table_name = 'vote_adjustments' AND column_name = 'new_total' AND data_type = 'bigint')
+  ) THEN
+    RAISE EXCEPTION 'Legacy vote_adjustments schema detected. Preserve and migrate its audit history before applying this migration.';
+  END IF;
+END;
+$$;
+
+CREATE TABLE IF NOT EXISTS public.admin_pin (
+  id int PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+  pin_hash text,
+  failed_attempts int NOT NULL DEFAULT 0 CHECK (failed_attempts >= 0),
+  locked_until timestamptz,
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+INSERT INTO public.admin_pin (id, pin_hash) VALUES (1, NULL) ON CONFLICT (id) DO NOTHING;
+ALTER TABLE public.admin_pin ENABLE ROW LEVEL SECURITY;
+
+CREATE TABLE IF NOT EXISTS public.vote_adjustments (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  creator_id uuid NOT NULL REFERENCES public.creators(id) ON DELETE CASCADE,
+  delta bigint NOT NULL,
+  new_total bigint NOT NULL CHECK (new_total >= 0),
+  reason text NOT NULL CHECK (btrim(reason) <> ''),
+  created_by uuid NOT NULL REFERENCES auth.users(id),
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS vote_adjustments_creator_id_idx ON public.vote_adjustments (creator_id);
+ALTER TABLE public.vote_adjustments ENABLE ROW LEVEL SECURITY;
+
+-- Remove existing policies too: an old permissive write policy must not survive.
+DO $$
+DECLARE p record;
+BEGIN
+  FOR p IN SELECT schemaname, tablename, policyname FROM pg_policies
+    WHERE schemaname = 'public' AND tablename IN ('admin_pin', 'vote_adjustments')
+  LOOP
+    EXECUTE format('DROP POLICY %I ON %I.%I', p.policyname, p.schemaname, p.tablename);
+  END LOOP;
+END;
+$$;
+REVOKE ALL ON public.admin_pin, public.vote_adjustments FROM PUBLIC, anon, authenticated;
+CREATE POLICY "Authors can read vote adjustments" ON public.vote_adjustments
+  FOR SELECT TO authenticated USING (public.is_author());
+GRANT SELECT ON public.vote_adjustments TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.set_vote_adjustment_pin(p_current_password text, p_new_pin text)
+RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $function$
+DECLARE
+  v_password_hash text;
+  v_verified boolean;
+  v_crypto_schema text;
+  v_pin_hash text;
+BEGIN
+  IF auth.uid() IS NULL OR public.is_owner() IS NOT TRUE THEN
+    RAISE EXCEPTION 'Not authorized';
+  END IF;
+  SELECT encrypted_password INTO v_password_hash FROM auth.users WHERE id = auth.uid();
+  IF p_current_password IS NULL OR v_password_hash IS NULL OR v_password_hash = '' THEN
+    RAISE EXCEPTION 'Incorrect password';
+  END IF;
+  SELECT n.nspname INTO STRICT v_crypto_schema
+    FROM pg_catalog.pg_extension e JOIN pg_catalog.pg_namespace n ON n.oid = e.extnamespace
+    WHERE e.extname = 'pgcrypto';
+  EXECUTE format('SELECT %I.crypt($1, $2) = $2', v_crypto_schema)
+    INTO v_verified USING p_current_password, v_password_hash;
+  IF v_verified IS NOT TRUE THEN RAISE EXCEPTION 'Incorrect password'; END IF;
+  IF p_new_pin IS NULL OR p_new_pin !~ '^[0-9]{4,6}$' THEN
+    RAISE EXCEPTION 'PIN must be 4 to 6 digits';
+  END IF;
+  EXECUTE format('SELECT %I.crypt($1, %I.gen_salt(''bf''))', v_crypto_schema, v_crypto_schema)
+    INTO v_pin_hash USING p_new_pin;
+  INSERT INTO public.admin_pin (id, pin_hash, failed_attempts, locked_until, updated_at)
+    VALUES (1, v_pin_hash, 0, NULL, now())
+    ON CONFLICT (id) DO UPDATE SET pin_hash = EXCLUDED.pin_hash,
+      failed_attempts = 0, locked_until = NULL, updated_at = now();
+  RETURN true;
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.verify_vote_adjustment_pin(p_pin text)
+RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $function$
+DECLARE
+  v_pin_hash text;
+  v_attempts int;
+  v_locked_until timestamptz;
+  v_verified boolean := false;
+  v_crypto_schema text;
+BEGIN
+  IF auth.uid() IS NULL OR public.is_author() IS NOT TRUE THEN
+    RAISE EXCEPTION 'Not authorized';
+  END IF;
+  SELECT pin_hash, failed_attempts, locked_until INTO v_pin_hash, v_attempts, v_locked_until
+    FROM public.admin_pin WHERE id = 1 FOR UPDATE;
+  IF v_pin_hash IS NULL THEN
+    RAISE EXCEPTION 'No PIN has been set yet — set one in Settings first';
+  END IF;
+  IF v_locked_until IS NOT NULL AND v_locked_until > clock_timestamp() THEN
+    RAISE EXCEPTION 'Too many incorrect attempts. Try again after %', v_locked_until;
+  END IF;
+  IF p_pin IS NOT NULL AND p_pin ~ '^[0-9]{4,6}$' THEN
+    SELECT n.nspname INTO STRICT v_crypto_schema
+      FROM pg_catalog.pg_extension e JOIN pg_catalog.pg_namespace n ON n.oid = e.extnamespace
+      WHERE e.extname = 'pgcrypto';
+    EXECUTE format('SELECT %I.crypt($1, $2) = $2', v_crypto_schema)
+      INTO v_verified USING p_pin, v_pin_hash;
+  END IF;
+  IF v_verified IS TRUE THEN
+    UPDATE public.admin_pin SET failed_attempts = 0, locked_until = NULL, updated_at = now() WHERE id = 1;
+    RETURN true;
+  END IF;
+  v_attempts := v_attempts + 1;
+  UPDATE public.admin_pin SET
+    failed_attempts = CASE WHEN v_attempts >= 5 THEN 0 ELSE v_attempts END,
+    locked_until = CASE WHEN v_attempts >= 5 THEN clock_timestamp() + interval '5 minutes' ELSE NULL END,
+    updated_at = now()
+    WHERE id = 1;
+  RETURN false;
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.adjust_vote_count(p_creator_id uuid, p_pin text, p_new_count bigint, p_reason text)
+RETURNS bigint LANGUAGE plpgsql SECURITY DEFINER SET search_path = public
+AS $function$
+DECLARE
+  v_current_total numeric;
+  v_delta bigint;
+BEGIN
+  IF auth.uid() IS NULL OR public.is_author() IS NOT TRUE THEN
+    RAISE EXCEPTION 'Not authorized';
+  END IF;
+  -- IMPORTANT: raising here would roll back the shared lockout counter.
+  -- Pending user approval: NULL means Incorrect PIN; never treat it as zero/success.
+  IF public.verify_vote_adjustment_pin(p_pin) IS NOT TRUE THEN RETURN NULL; END IF;
+  IF p_reason IS NULL OR btrim(p_reason) = '' THEN RAISE EXCEPTION 'A reason is required'; END IF;
+  IF p_new_count IS NULL OR p_new_count < 0 THEN RAISE EXCEPTION 'Vote count must be nonnegative'; END IF;
+  PERFORM 1 FROM public.creators WHERE id = p_creator_id FOR KEY SHARE;
+  IF NOT FOUND THEN RAISE EXCEPTION 'Creator not found'; END IF;
+  -- The PIN row lock serializes adjustments. This brief read lock also keeps
+  -- real votes stable between calculating the delta and recording the audit row.
+  LOCK TABLE public.votes IN SHARE MODE;
+  SELECT (SELECT count(*) FROM public.votes WHERE creator_id = p_creator_id)
+    + coalesce((SELECT sum(delta) FROM public.vote_adjustments WHERE creator_id = p_creator_id), 0)
+    INTO v_current_total;
+  v_delta := p_new_count::numeric - v_current_total;
+  INSERT INTO public.vote_adjustments (creator_id, delta, new_total, reason, created_by)
+    VALUES (p_creator_id, v_delta, p_new_count, btrim(p_reason), auth.uid());
+  RETURN p_new_count;
+END;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.get_vote_counts()
+RETURNS TABLE (creator_id uuid, vote_count bigint)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+AS $function$
+  SELECT c.id,
+    (coalesce(v.cnt, 0) + coalesce(a.adj, 0))::bigint
+  FROM public.creators c
+  LEFT JOIN (SELECT creator_id, count(*) AS cnt FROM public.votes GROUP BY creator_id) v ON v.creator_id = c.id
+  LEFT JOIN (SELECT creator_id, sum(delta) AS adj FROM public.vote_adjustments GROUP BY creator_id) a ON a.creator_id = c.id;
+$function$;
+
+CREATE OR REPLACE FUNCTION public.get_total_votes()
+RETURNS bigint LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public
+AS $function$
+  SELECT ((SELECT count(*) FROM public.votes)
+    + coalesce((SELECT sum(delta) FROM public.vote_adjustments), 0))::bigint;
+$function$;
+
+-- Revoke every old overload, including the earlier PIN-less delta-based RPC.
+DO $$
+DECLARE f record;
+BEGIN
+  FOR f IN SELECT p.oid::regprocedure AS signature
+    FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public' AND p.proname IN
+      ('adjust_vote_count', 'set_vote_adjustment_pin', 'verify_vote_adjustment_pin')
+  LOOP
+    EXECUTE format('REVOKE ALL ON FUNCTION %s FROM PUBLIC, anon, authenticated', f.signature);
+  END LOOP;
+END;
+$$;
+GRANT EXECUTE ON FUNCTION public.set_vote_adjustment_pin(text, text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.verify_vote_adjustment_pin(text) TO authenticated;
+GRANT EXECUTE ON FUNCTION public.adjust_vote_count(uuid, text, bigint, text) TO authenticated;
+REVOKE ALL ON FUNCTION public.get_vote_counts(), public.get_total_votes() FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION public.get_vote_counts(), public.get_total_votes() TO anon, authenticated;
+NOTIFY pgrst, 'reload schema';
+COMMIT;

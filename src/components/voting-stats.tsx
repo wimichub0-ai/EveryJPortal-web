@@ -48,7 +48,7 @@ export function VotingStats({ totalVotes, votingStatus, pausedResumeAt, remainin
   ] as const;
   if (totalVotes === null && votingStatus === "live" && remaining === null) return null;
   return <Reveal className="mb-6 space-y-4 text-center">
-    {totalVotes !== null && <p className="font-display text-xl font-bold" aria-label={`${totalVotes.toLocaleString()} ${COPY.votesCast}`}>
+    {votingStatus !== "paused" && totalVotes !== null && <p className="font-display text-xl font-bold" aria-label={`${totalVotes.toLocaleString()} ${COPY.votesCast}`}>
       <span aria-hidden="true">🔥 <span ref={number} className="tabular-nums">{totalVotes.toLocaleString()}</span> {COPY.votesCast}</span>
     </p>}
     <VotingStatusBanner status={votingStatus} pausedResumeAt={pausedResumeAt} />
