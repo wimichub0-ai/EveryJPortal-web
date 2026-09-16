@@ -150,7 +150,8 @@ export function VoteSheet({ creator, votingStatus, pausedResumeAt, onClose, onVo
   const castVote = useCallback(
     async (voterName: string) => {
       if (currentStatus.current !== "live" || !(await checkEviction())) return false;
-      const { data, error: rpcError } = await createClient().rpc("cast_vote", {
+      const supabase = createClient();
+      const { data, error: rpcError } = await supabase.rpc("cast_vote", {
         p_creator_id: creator.id,
         p_voter_name: voterName,
       });
@@ -160,7 +161,16 @@ export function VoteSheet({ creator, votingStatus, pausedResumeAt, onClose, onVo
         return false;
       }
 
-      const total = Number(data);
+      // cast_vote may return the raw vote-table count. Always reconcile through
+      // get_vote_counts so manual adjustments are included in the success copy.
+      const correctedCount = await supabase
+        .rpc("get_vote_counts")
+        .eq("creator_id", creator.id)
+        .maybeSingle();
+      const countRow = correctedCount.data as { vote_count: number | string } | null;
+      const total = correctedCount.error || !countRow
+        ? Number(data)
+        : Number(countRow.vote_count);
       setNewTotal(total);
       setStep("SUCCESS");
       onVoteResolved(creator.id, total);
