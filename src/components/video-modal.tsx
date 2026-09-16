@@ -4,17 +4,17 @@ import { X } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { VoteButton } from "@/components/vote-button";
 import { YouTubeButton } from "@/components/youtube-button";
-import type { Creator } from "@/lib/types";
+import type { Creator, VotingStatus } from "@/lib/types";
 
 type VideoModalProps = {
   creator: Creator | null;
-  votingOpen: boolean;
+  votingStatus: VotingStatus;
   hasVoted: boolean;
   onClose: () => void;
   onVote: (creator: Creator) => void;
 };
 
-export function VideoModal({ creator, votingOpen, hasVoted, onClose, onVote }: VideoModalProps) {
+export function VideoModal({ creator, votingStatus, hasVoted, onClose, onVote }: VideoModalProps) {
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
@@ -66,7 +66,7 @@ export function VideoModal({ creator, votingOpen, hasVoted, onClose, onVote }: V
         </div>
         <div className="space-y-3 px-1 pb-1 pt-4">
           {creator.youtube_channel_url && <YouTubeButton href={creator.youtube_channel_url} />}
-          <VoteButton creator={creator} votingOpen={votingOpen} hasVoted={hasVoted} onVote={onVote} />
+          <VoteButton creator={creator} votingStatus={votingStatus} hasVoted={hasVoted} onVote={onVote} />
         </div>
       </div>
     </div>

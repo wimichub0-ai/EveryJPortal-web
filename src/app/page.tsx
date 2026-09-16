@@ -60,8 +60,7 @@ export default async function Home() {
           <LiveVotingPortal
             creators={creators}
             initialCounts={counts}
-            votingOpen={settings.voting_open}
-            votingEndsAt={settings.voting_ends_at}
+            initialSettings={{ voting_status: settings.voting_status, paused_resume_at: settings.paused_resume_at, voting_ends_at: settings.voting_ends_at }}
             initialTotal={totalVotes}
           />
         )}

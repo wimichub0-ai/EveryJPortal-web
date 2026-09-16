@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { VotingStats, useVotingDeadline } from "@/components/voting-stats";
+import { useLiveVotingSettings, type VotingSettings } from "@/hooks/use-live-voting-settings";
+import { VotingStats } from "@/components/voting-stats";
 import { CreatorCard } from "@/components/creator-card";
 import { TopCreators } from "@/components/top-creators";
 import { VideoModal } from "@/components/video-modal";
@@ -12,13 +13,12 @@ import type { Creator, VoteCount } from "@/lib/types";
 type LiveVotingPortalProps = {
   creators: Creator[];
   initialCounts: VoteCount[];
-  votingOpen: boolean;
-  votingEndsAt: string | null;
+  initialSettings: VotingSettings;
   initialTotal: number | null;
 };
 
-export function LiveVotingPortal({ creators, initialCounts, votingOpen: configuredOpen, votingEndsAt, initialTotal }: LiveVotingPortalProps) {
-  const { votingOpen, remaining } = useVotingDeadline(configuredOpen, votingEndsAt);
+export function LiveVotingPortal({ creators, initialCounts, initialSettings, initialTotal }: LiveVotingPortalProps) {
+  const { votingStatus, pausedResumeAt, remaining } = useLiveVotingSettings(initialSettings);
   const { counts, changedIds, totalVotes, setOptimisticCount } =
     useLiveVoteCounts(creators, initialCounts, initialTotal);
   const [selectedCreator, setSelectedCreator] = useState<Creator | null>(null);
@@ -48,7 +48,7 @@ export function LiveVotingPortal({ creators, initialCounts, votingOpen: configur
 
   return (
     <>
-      <VotingStats totalVotes={totalVotes} votingOpen={votingOpen} remaining={remaining} />
+      <VotingStats totalVotes={totalVotes} pausedResumeAt={pausedResumeAt} votingStatus={votingStatus} remaining={remaining} />
       <TopCreators creators={rankedCreators} changedIds={changedIds} />
 
       <section aria-labelledby="creator-list-heading">
@@ -65,7 +65,7 @@ export function LiveVotingPortal({ creators, initialCounts, votingOpen: configur
                 creator={creator}
                 count={counts[creator.id] ?? 0}
                 totalVotes={totalVotes ?? Object.values(counts).reduce((sum, count) => sum + count, 0)}
-                votingOpen={votingOpen}
+                votingStatus={votingStatus}
                 hasVoted={hasVoted}
                 countChanged={changedIds.has(creator.id)}
                 onOpenVideo={setSelectedCreator}
@@ -83,16 +83,17 @@ export function LiveVotingPortal({ creators, initialCounts, votingOpen: configur
 
       <VideoModal
         creator={selectedCreator}
-        votingOpen={votingOpen}
+        votingStatus={votingStatus}
         hasVoted={hasVoted}
         onClose={() => setSelectedCreator(null)}
         onVote={openVoteSheet}
       />
       {voteCreator && (
         <VoteSheet
+          pausedResumeAt={pausedResumeAt}
           key={voteCreator.id}
           creator={voteCreator}
-          votingOpen={votingOpen}
+          votingStatus={votingStatus}
           onClose={() => setVoteCreator(null)}
           onVoteResolved={handleVoteResolved}
         />

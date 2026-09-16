@@ -7,14 +7,14 @@ import { CreatorImage } from "@/components/creator-image";
 import { VoteButton } from "@/components/vote-button";
 import { YouTubeButton } from "@/components/youtube-button";
 import { YouTubeMark } from "@/components/youtube-mark";
-import type { Creator } from "@/lib/types";
+import type { Creator, VotingStatus } from "@/lib/types";
 
 type CreatorCardProps = {
   index?: number;
   creator: Creator;
   count: number;
   totalVotes: number;
-  votingOpen: boolean;
+  votingStatus: VotingStatus;
   hasVoted: boolean;
   countChanged: boolean;
   supportLine?: string;
@@ -27,7 +27,7 @@ export function CreatorCard({
   creator,
   count,
   totalVotes,
-  votingOpen,
+  votingStatus,
   hasVoted,
   countChanged,
   supportLine,
@@ -94,7 +94,7 @@ export function CreatorCard({
 
         <div className="mt-5 space-y-3">
           {creator.youtube_channel_url && <YouTubeButton href={creator.youtube_channel_url} />}
-          <VoteButton creator={creator} votingOpen={votingOpen} hasVoted={hasVoted} onVote={onVote} />
+          <VoteButton creator={creator} votingStatus={votingStatus} hasVoted={hasVoted} onVote={onVote} />
         </div>
       </div>
     </motion.article>

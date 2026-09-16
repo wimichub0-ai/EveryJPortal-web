@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useMemo, useState } from "react";
-import { VotingStats, useVotingDeadline } from "@/components/voting-stats";
+import { useLiveVotingSettings, type VotingSettings } from "@/hooks/use-live-voting-settings";
+import { VotingStats } from "@/components/voting-stats";
 import { CreatorCard } from "@/components/creator-card";
 import { VideoModal } from "@/components/video-modal";
 import { VoteSheet } from "@/components/vote-sheet";
@@ -11,19 +12,17 @@ import type { Creator, VoteCount } from "@/lib/types";
 type CreatorSpotlightProps = {
   creator: Creator;
   initialCounts: VoteCount[];
-  votingOpen: boolean;
-  votingEndsAt: string | null;
+  initialSettings: VotingSettings;
   initialTotal: number | null;
 };
 
 export function CreatorSpotlight({
   creator,
   initialCounts,
-  votingOpen: configuredOpen,
-  votingEndsAt,
+  initialSettings,
   initialTotal,
 }: CreatorSpotlightProps) {
-  const { votingOpen, remaining } = useVotingDeadline(configuredOpen, votingEndsAt);
+  const { votingStatus, pausedResumeAt, remaining } = useLiveVotingSettings(initialSettings);
   const creators = useMemo(() => [creator], [creator]);
   const { counts, changedIds, totalVotes, setOptimisticCount } =
     useLiveVoteCounts(creators, initialCounts, initialTotal);
@@ -46,12 +45,12 @@ export function CreatorSpotlight({
 
   return (
     <>
-      <VotingStats totalVotes={totalVotes} votingOpen={votingOpen} remaining={remaining} />
+      <VotingStats totalVotes={totalVotes} pausedResumeAt={pausedResumeAt} votingStatus={votingStatus} remaining={remaining} />
       <CreatorCard
         creator={creator}
         count={counts[creator.id] ?? 0}
         totalVotes={totalVotes ?? Object.values(counts).reduce((sum, count) => sum + count, 0)}
-        votingOpen={votingOpen}
+        votingStatus={votingStatus}
         hasVoted={hasVoted}
         countChanged={changedIds.has(creator.id)}
         supportLine={`Support ${creator.name} in House Of Creators with a vote — and subscribe to the YouTube channel.`}
@@ -61,7 +60,7 @@ export function CreatorSpotlight({
 
       <VideoModal
         creator={videoCreator}
-        votingOpen={votingOpen}
+        votingStatus={votingStatus}
         hasVoted={hasVoted}
         onClose={() => setVideoCreator(null)}
         onVote={openVoteSheet}
@@ -69,9 +68,10 @@ export function CreatorSpotlight({
 
       {voteCreator && (
         <VoteSheet
+          pausedResumeAt={pausedResumeAt}
           key={voteCreator.id}
           creator={voteCreator}
-          votingOpen={votingOpen}
+          votingStatus={votingStatus}
           onClose={() => setVoteCreator(null)}
           onVoteResolved={handleVoteResolved}
         />

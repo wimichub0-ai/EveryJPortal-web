@@ -8,14 +8,16 @@ import {
   useCallback,
   useEffect,
   useEffectEvent,
+  useLayoutEffect,
   useRef,
   useState,
 } from "react";
 import { ShareCreatorButton } from "@/components/share-creator-button";
+import { VotingStatusBanner } from "@/components/voting-status-banner";
 import { CreatorImage } from "@/components/creator-image";
 import { YouTubeButton } from "@/components/youtube-button";
 import { createClient } from "@/lib/supabase/client";
-import type { Creator } from "@/lib/types";
+import type { Creator, VotingStatus } from "@/lib/types";
 import { BLOCKED_EMAIL_DOMAINS, VOTE_FLOW_COPY as COPY } from "@/lib/vote-flow-copy";
 
 type VoteStep =
@@ -24,11 +26,13 @@ type VoteStep =
   | "CODE"
   | "SUCCESS"
   | "ALREADY_VOTED"
-  | "CLOSED";
+  | "CLOSED"
+  | "PAUSED";
 
 type VoteSheetProps = {
   creator: Creator;
-  votingOpen: boolean;
+  votingStatus: VotingStatus;
+  pausedResumeAt: string | null;
   onClose: () => void;
   onVoteResolved: (creatorId: string, newTotal?: number) => void;
 };
@@ -69,8 +73,8 @@ function isRateLimitError(error: unknown) {
   return status === 429 || message.includes("rate limit") || message.includes("too many");
 }
 
-export function VoteSheet({ creator, votingOpen, onClose, onVoteResolved }: VoteSheetProps) {
-  const [step, setStep] = useState<VoteStep>(votingOpen ? "CHECKING" : "CLOSED");
+export function VoteSheet({ creator, votingStatus, pausedResumeAt, onClose, onVoteResolved }: VoteSheetProps) {
+  const [step, setStep] = useState<VoteStep>("CHECKING");
   const [name, setName] = useState("");
   const [contact, setContact] = useState("");
   const [digits, setDigits] = useState(["", "", "", "", "", ""]);
@@ -82,6 +86,8 @@ export function VoteSheet({ creator, votingOpen, onClose, onVoteResolved }: Vote
   const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const requestRef = useRef(false);
+  const currentStatus = useRef(votingStatus);
+  useLayoutEffect(() => { currentStatus.current = votingStatus; }, [votingStatus]);
 
   const safelyClose = useCallback(() => {
     if (!requestRef.current) onClose();
@@ -97,6 +103,10 @@ export function VoteSheet({ creator, votingOpen, onClose, onVoteResolved }: Vote
       if (message.includes("You have already used your vote")) {
         setStep("ALREADY_VOTED");
         onVoteResolved(creator.id);
+        return true;
+      }
+      if (message.includes("Voting is paused")) {
+        setStep("PAUSED");
         return true;
       }
       if (message.includes("Voting is closed")) {
@@ -115,6 +125,7 @@ export function VoteSheet({ creator, votingOpen, onClose, onVoteResolved }: Vote
 
   const castVote = useCallback(
     async (voterName: string) => {
+      if (currentStatus.current !== "live") return false;
       const { data, error: rpcError } = await createClient().rpc("cast_vote", {
         p_creator_id: creator.id,
         p_voter_name: voterName,
@@ -136,7 +147,7 @@ export function VoteSheet({ creator, votingOpen, onClose, onVoteResolved }: Vote
 
   useEffect(() => {
     let cancelled = false;
-    if (!votingOpen) return;
+    if (votingStatus !== "live") return;
 
     const checkSession = async () => {
       requestRef.current = true;
@@ -182,7 +193,7 @@ export function VoteSheet({ creator, votingOpen, onClose, onVoteResolved }: Vote
       cancelled = true;
       requestRef.current = false;
     };
-  }, [creator.id, onVoteResolved, votingOpen]);
+  }, [creator.id, onVoteResolved, votingStatus]);
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
@@ -226,7 +237,7 @@ export function VoteSheet({ creator, votingOpen, onClose, onVoteResolved }: Vote
   };
 
   const sendCode = async (stayOnCode = false) => {
-    if (requestRef.current) return;
+    if (requestRef.current || votingStatus !== "live") return;
     const validated = validateDetails();
     if (!validated) return;
     const { normalized } = validated;
@@ -264,7 +275,7 @@ export function VoteSheet({ creator, votingOpen, onClose, onVoteResolved }: Vote
   };
 
   const verifyAndVote = async (token = digits.join("")) => {
-    if (requestRef.current) return;
+    if (requestRef.current || votingStatus !== "live") return;
     if (!/^\d{6}$/.test(token)) {
       setError(COPY.incompleteCode);
       return;
@@ -319,16 +330,18 @@ export function VoteSheet({ creator, votingOpen, onClose, onVoteResolved }: Vote
     void verifyAndVote();
   };
 
+  const displayStep: VoteStep = votingStatus === "paused" ? "PAUSED" : votingStatus === "closed" ? "CLOSED" : step;
   const title =
-    step === "DETAILS"
+    displayStep === "PAUSED" ? COPY.pausedTitle :
+    displayStep === "DETAILS"
       ? COPY.detailsTitle(creator.name)
-      : step === "CODE"
+      : displayStep === "CODE"
         ? COPY.codeTitle
-        : step === "SUCCESS"
+        : displayStep === "SUCCESS"
           ? COPY.successTitle
-          : step === "ALREADY_VOTED"
+          : displayStep === "ALREADY_VOTED"
             ? COPY.alreadyTitle
-            : step === "CLOSED"
+            : displayStep === "CLOSED"
               ? COPY.closedTitle
               : COPY.checking;
   const supportButtons = (
@@ -367,13 +380,13 @@ export function VoteSheet({ creator, votingOpen, onClose, onVoteResolved }: Vote
           </h2>
         </header>
 
-        {step === "CHECKING" && (
+        {displayStep === "CHECKING" && (
           <div className="flex min-h-56 items-center justify-center">
             <LoaderCircle className="h-8 w-8 animate-spin text-[#73D75C]" aria-hidden="true" />
           </div>
         )}
 
-        {step === "DETAILS" && (
+        {displayStep === "DETAILS" && (
           <form onSubmit={handleDetailsSubmit} className="mt-5 space-y-4">
             <p className="text-sm leading-6 text-[#707070]">{COPY.detailsSubtext(creator.name)}</p>
             <label className="block text-sm font-semibold text-[#2B2B2B]">
@@ -427,7 +440,7 @@ export function VoteSheet({ creator, votingOpen, onClose, onVoteResolved }: Vote
           </form>
         )}
 
-        {step === "CODE" && (
+        {displayStep === "CODE" && (
           <form onSubmit={handleCodeSubmit} className="mt-5">
             <p className="text-sm leading-6 text-[#707070]">
               {COPY.codeSubtext(contact)}
@@ -483,7 +496,7 @@ export function VoteSheet({ creator, votingOpen, onClose, onVoteResolved }: Vote
           </form>
         )}
 
-        {step === "SUCCESS" && (
+        {displayStep === "SUCCESS" && (
           <div className="mt-6 text-center">
             <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-[#E2F7E9] text-[#1A9A4A]">
               <Check className="h-10 w-10 stroke-[3]" aria-hidden="true" />
@@ -495,7 +508,7 @@ export function VoteSheet({ creator, votingOpen, onClose, onVoteResolved }: Vote
           </div>
         )}
 
-        {step === "ALREADY_VOTED" && (
+        {displayStep === "ALREADY_VOTED" && (
           <div className="mt-6 text-center">
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[#E5F8DF] font-display text-2xl font-bold text-[#287A1D]">
               1×
@@ -505,9 +518,10 @@ export function VoteSheet({ creator, votingOpen, onClose, onVoteResolved }: Vote
           </div>
         )}
 
-        {step === "CLOSED" && (
-          <div className="mt-6 text-center">
-            <p className="mx-auto max-w-xs text-sm leading-6 text-[#707070]">{COPY.closedSubtext}</p>
+        {(displayStep === "PAUSED" || displayStep === "CLOSED") && (
+          <div className="mt-6">
+            <VotingStatusBanner status={displayStep === "PAUSED" ? "paused" : "closed"} pausedResumeAt={pausedResumeAt} />
+            <button type="button" onClick={onClose} className="mt-4 min-h-12 w-full rounded-full bg-[#EEEEEE] px-5 font-display text-sm font-semibold text-[#2B2B2B] disabled:opacity-50">{COPY.gotIt}</button>
           </div>
         )}
       </div>

@@ -1,3 +1,4 @@
+import { normalizeVotingSettings } from "@/lib/voting-settings";
 import { cache } from "react";
 import { createClient } from "@/lib/supabase/server";
 import type { Creator, PortalSettings, VoteCount } from "@/lib/types";
@@ -7,19 +8,15 @@ const fallbackSettings: PortalSettings = {
   campaign_subtitle:
     "Vote for the creator you want to see win the grand prize of 1 million naira",
   voting_open: true,
+  voting_status: "live",
+  paused_resume_at: null,
   voting_ends_at: null,
 };
 
-// Keep the existing portal usable while the nullable-column migration rolls out.
+// Normalize legacy rows only while the status migration is pending.
 async function getSettings(supabase: ReturnType<typeof createClient>) {
-  const result = await supabase.from("settings")
-    .select("campaign_title, campaign_subtitle, voting_open, voting_ends_at")
-    .eq("id", 1).maybeSingle();
-  if (result.error?.code !== "42703" && result.error?.code !== "PGRST204") return result;
-  const legacy = await supabase.from("settings")
-    .select("campaign_title, campaign_subtitle, voting_open")
-    .eq("id", 1).maybeSingle();
-  return { ...legacy, data: legacy.data ? { ...legacy.data, voting_ends_at: null } : null };
+  const result = await supabase.from("settings").select("*").eq("id", 1).maybeSingle();
+  return { ...result, data: result.data ? { ...result.data, ...normalizeVotingSettings(result.data) } : null };
 }
 
 export const getPortalData = cache(async () => {

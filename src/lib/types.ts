@@ -10,10 +10,14 @@ export type Creator = {
   is_active: boolean;
 };
 
+export type VotingStatus = "live" | "paused" | "closed";
+
 export type PortalSettings = {
   campaign_title: string;
   campaign_subtitle: string;
   voting_open: boolean;
+  voting_status: VotingStatus;
+  paused_resume_at: string | null;
   voting_ends_at: string | null;
 };
 
