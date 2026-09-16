@@ -14,6 +14,7 @@ type VoteButtonProps = {
 
 export function VoteButton({ creator, votingStatus, hasVoted = false, onVote }: VoteButtonProps) {
   const reduced = useReducedMotion();
+  if (creator.is_evicted) return null;
   if (votingStatus === "paused") {
     return <button type="button" disabled className="flex min-h-12 w-full cursor-not-allowed items-center justify-center gap-2 rounded-full bg-brand-soft px-5 font-display text-sm font-semibold text-brand-ink">
       <Clock className="h-4 w-4" aria-hidden="true" />{COPY.pausedButton}

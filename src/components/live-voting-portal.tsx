@@ -1,5 +1,7 @@
 "use client";
 
+import { rankCreators } from "@/lib/rank-creators";
+import { useCreatorEvictions } from "@/hooks/use-creator-evictions";
 import { useCallback, useMemo, useState } from "react";
 import { useLiveVotingSettings, type VotingSettings } from "@/hooks/use-live-voting-settings";
 import { VotingStats } from "@/components/voting-stats";
@@ -17,22 +19,15 @@ type LiveVotingPortalProps = {
   initialTotal: number | null;
 };
 
-export function LiveVotingPortal({ creators, initialCounts, initialSettings, initialTotal }: LiveVotingPortalProps) {
+export function LiveVotingPortal({ creators: initialCreators, initialCounts, initialSettings, initialTotal }: LiveVotingPortalProps) {
+  const creators = useCreatorEvictions(initialCreators);
   const { votingStatus, pausedResumeAt, remaining } = useLiveVotingSettings(initialSettings);
   const { counts, changedIds, totalVotes, setOptimisticCount } =
     useLiveVoteCounts(creators, initialCounts, initialTotal);
   const [selectedCreator, setSelectedCreator] = useState<Creator | null>(null);
   const [voteCreator, setVoteCreator] = useState<Creator | null>(null);
   const [hasVoted, setHasVoted] = useState(false);
-  const rankedCreators = useMemo(
-    () =>
-      creators
-        .map((creator) => ({ ...creator, voteCount: counts[creator.id] ?? 0 }))
-        .filter((creator) => creator.voteCount > 0)
-        .sort((a, b) => b.voteCount - a.voteCount || a.display_order - b.display_order)
-        .slice(0, 3),
-    [counts, creators],
-  );
+  const rankedCreators = useMemo(() => rankCreators(creators, counts), [counts, creators]);
 
   const openVoteSheet = useCallback((creator: Creator) => {
     setSelectedCreator(null);
@@ -82,7 +77,7 @@ export function LiveVotingPortal({ creators, initialCounts, initialSettings, ini
       </section>
 
       <VideoModal
-        creator={selectedCreator}
+        creator={selectedCreator ? creators.find((creator) => creator.id === selectedCreator.id) ?? selectedCreator : null}
         votingStatus={votingStatus}
         hasVoted={hasVoted}
         onClose={() => setSelectedCreator(null)}
@@ -92,7 +87,7 @@ export function LiveVotingPortal({ creators, initialCounts, initialSettings, ini
         <VoteSheet
           pausedResumeAt={pausedResumeAt}
           key={voteCreator.id}
-          creator={voteCreator}
+          creator={creators.find((creator) => creator.id === voteCreator.id) ?? voteCreator}
           votingStatus={votingStatus}
           onClose={() => setVoteCreator(null)}
           onVoteResolved={handleVoteResolved}

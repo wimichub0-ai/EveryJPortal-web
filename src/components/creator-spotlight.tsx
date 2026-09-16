@@ -1,5 +1,7 @@
 "use client";
 
+import { useCreatorEvictions } from "@/hooks/use-creator-evictions";
+import { VOTE_FLOW_COPY as COPY } from "@/lib/vote-flow-copy";
 import { useCallback, useMemo, useState } from "react";
 import { useLiveVotingSettings, type VotingSettings } from "@/hooks/use-live-voting-settings";
 import { VotingStats } from "@/components/voting-stats";
@@ -17,13 +19,15 @@ type CreatorSpotlightProps = {
 };
 
 export function CreatorSpotlight({
-  creator,
+  creator: initialCreator,
   initialCounts,
   initialSettings,
   initialTotal,
 }: CreatorSpotlightProps) {
   const { votingStatus, pausedResumeAt, remaining } = useLiveVotingSettings(initialSettings);
-  const creators = useMemo(() => [creator], [creator]);
+  const initialCreators = useMemo(() => [initialCreator], [initialCreator]);
+  const creators = useCreatorEvictions(initialCreators);
+  const creator = creators[0];
   const { counts, changedIds, totalVotes, setOptimisticCount } =
     useLiveVoteCounts(creators, initialCounts, initialTotal);
   const [videoCreator, setVideoCreator] = useState<Creator | null>(null);
@@ -53,13 +57,13 @@ export function CreatorSpotlight({
         votingStatus={votingStatus}
         hasVoted={hasVoted}
         countChanged={changedIds.has(creator.id)}
-        supportLine={`Support ${creator.name} in House Of Creators with a vote — and subscribe to the YouTube channel.`}
+        supportLine={COPY.supportLine(creator.name)}
         onOpenVideo={setVideoCreator}
         onVote={openVoteSheet}
       />
 
       <VideoModal
-        creator={videoCreator}
+        creator={videoCreator ? creator : null}
         votingStatus={votingStatus}
         hasVoted={hasVoted}
         onClose={() => setVideoCreator(null)}
@@ -70,7 +74,7 @@ export function CreatorSpotlight({
         <VoteSheet
           pausedResumeAt={pausedResumeAt}
           key={voteCreator.id}
-          creator={voteCreator}
+          creator={creator}
           votingStatus={votingStatus}
           onClose={() => setVoteCreator(null)}
           onVoteResolved={handleVoteResolved}

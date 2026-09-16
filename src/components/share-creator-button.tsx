@@ -8,7 +8,7 @@ import { VOTE_FLOW_COPY as COPY } from "@/lib/vote-flow-copy";
 import type { Creator } from "@/lib/types";
 
 type ShareCreatorButtonProps = {
-  creator: Pick<Creator, "name" | "slug">;
+  creator: Pick<Creator, "name" | "slug" | "is_evicted">;
   variant: "corner-on-media" | "vote-sheet";
 };
 
@@ -48,7 +48,7 @@ export function ShareCreatorButton({ creator, variant }: ShareCreatorButtonProps
     <div className={corner ? "absolute right-[10px] top-[10px] z-20" : "relative"}>
       <motion.button
         type="button"
-        aria-label={`Share ${creator.name}`}
+        aria-label={creator.is_evicted ? COPY.shareStory(creator.name) : COPY.shareLabel(creator.name)}
         whileTap={reduced ? undefined : { scale: 0.94 }}
         transition={{ duration: 0.12 }}
         onClick={(event) => {
@@ -61,7 +61,7 @@ export function ShareCreatorButton({ creator, variant }: ShareCreatorButtonProps
       >
         {corner ? <Share2 className="h-4 w-4" aria-hidden="true" /> : <>
           <ExternalLink className="h-4 w-4" aria-hidden="true" />
-          {feedback === "copied" ? COPY.copied : COPY.share(creator.name)}
+          {feedback === "copied" ? COPY.copied : creator.is_evicted ? COPY.shareStory(creator.name) : COPY.share(creator.name)}
         </>}
       </motion.button>
       <span role="status" aria-live="polite" className={feedback && (corner || feedback === "error")
@@ -69,7 +69,7 @@ export function ShareCreatorButton({ creator, variant }: ShareCreatorButtonProps
           ? "pointer-events-none absolute right-0 top-[42px] w-max max-w-52 rounded-lg bg-[#2B2B2B] px-3 py-2 text-xs text-white shadow-lg"
           : "mt-2 block text-center text-xs text-red-600"
         : "sr-only"}>
-        {feedback === "copied" ? COPY.copied : feedback === "error" ? "Couldn't share the link. Please try again." : ""}
+        {feedback === "copied" ? COPY.copied : feedback === "error" ? COPY.shareError : ""}
       </span>
     </div>
   );

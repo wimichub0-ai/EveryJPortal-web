@@ -1,3 +1,4 @@
+import { VOTE_FLOW_COPY as COPY } from "@/lib/vote-flow-copy";
 import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
@@ -29,7 +30,7 @@ export async function generateMetadata({ params }: CreatorPageProps): Promise<Me
 
   const metadataBase = await getRequestBaseUrl();
   const title = `${creator.name} — House Of Creators`;
-  const description = `Support ${creator.name} in House Of Creators with a vote and subscribe to the YouTube channel.`;
+  const description = creator.is_evicted ? COPY.storyShareText(creator.name) : COPY.supportLine(creator.name);
   const imageUrl = new URL(`/c/${encodeURIComponent(slug)}/opengraph-image`, metadataBase);
 
   return {

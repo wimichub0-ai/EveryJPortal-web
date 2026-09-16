@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Check, LoaderCircle, X } from "lucide-react";
 import {
   type ClipboardEvent,
@@ -27,7 +28,8 @@ type VoteStep =
   | "SUCCESS"
   | "ALREADY_VOTED"
   | "CLOSED"
-  | "PAUSED";
+  | "PAUSED"
+  | "EVICTED";
 
 type VoteSheetProps = {
   creator: Creator;
@@ -86,6 +88,8 @@ export function VoteSheet({ creator, votingStatus, pausedResumeAt, onClose, onVo
   const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
   const requestRef = useRef(false);
+  const currentEvicted = useRef(creator.is_evicted);
+  useLayoutEffect(() => { currentEvicted.current = creator.is_evicted; }, [creator.is_evicted]);
   const currentStatus = useRef(votingStatus);
   useLayoutEffect(() => { currentStatus.current = votingStatus; }, [votingStatus]);
 
@@ -100,6 +104,11 @@ export function VoteSheet({ creator, votingStatus, pausedResumeAt, onClose, onVo
   const moveToRpcErrorState = useCallback(
     (rpcError: unknown) => {
       const message = errorMessage(rpcError);
+      if (message.includes("This creator has been evicted")) {
+        currentEvicted.current = true;
+        setStep("EVICTED");
+        return true;
+      }
       if (message.includes("You have already used your vote")) {
         setStep("ALREADY_VOTED");
         onVoteResolved(creator.id);
@@ -123,9 +132,24 @@ export function VoteSheet({ creator, votingStatus, pausedResumeAt, onClose, onVo
     [creator, onVoteResolved],
   );
 
+  const checkEviction = useCallback(async () => {
+    if (currentEvicted.current) { setStep("EVICTED"); return false; }
+    try {
+      const { data, error: creatorError } = await createClient().from("creators")
+        .select("is_evicted").eq("id", creator.id).maybeSingle();
+      if (creatorError || !data) { setError(COPY.genericError); return false; }
+      if (data.is_evicted || currentEvicted.current) {
+        currentEvicted.current = true;
+        setStep("EVICTED");
+        return false;
+      }
+      return true;
+    } catch { setError(COPY.genericError); return false; }
+  }, [creator.id]);
+
   const castVote = useCallback(
     async (voterName: string) => {
-      if (currentStatus.current !== "live") return false;
+      if (currentStatus.current !== "live" || !(await checkEviction())) return false;
       const { data, error: rpcError } = await createClient().rpc("cast_vote", {
         p_creator_id: creator.id,
         p_voter_name: voterName,
@@ -142,19 +166,25 @@ export function VoteSheet({ creator, votingStatus, pausedResumeAt, onClose, onVo
       onVoteResolved(creator.id, total);
       return true;
     },
-    [creator, moveToRpcErrorState, onVoteResolved],
+    [creator, moveToRpcErrorState, onVoteResolved, checkEviction],
   );
 
   useEffect(() => {
     let cancelled = false;
-    if (votingStatus !== "live") return;
+    if (votingStatus !== "live" || creator.is_evicted) return;
 
     const checkSession = async () => {
       requestRef.current = true;
       setInFlight(true);
+      if (!(await checkEviction())) {
+        requestRef.current = false;
+        setInFlight(false);
+        return;
+      }
+      if (cancelled || currentEvicted.current) return;
       const supabase = createClient();
       const { data } = await supabase.auth.getSession();
-      if (cancelled) return;
+      if (cancelled || currentEvicted.current) return;
 
       if (!data.session) {
         requestRef.current = false;
@@ -168,7 +198,7 @@ export function VoteSheet({ creator, votingStatus, pausedResumeAt, onClose, onVo
         .select("id")
         .eq("user_id", data.session.user.id)
         .maybeSingle();
-      if (cancelled) return;
+      if (cancelled || currentEvicted.current) return;
 
       if (existingVote) {
         onVoteResolved(creator.id);
@@ -180,7 +210,7 @@ export function VoteSheet({ creator, votingStatus, pausedResumeAt, onClose, onVo
 
       if (voteLookupError) setError(COPY.genericError);
       const { error: signOutError } = await supabase.auth.signOut();
-      if (cancelled) return;
+      if (cancelled || currentEvicted.current) return;
 
       if (signOutError) setError(COPY.genericError);
       requestRef.current = false;
@@ -193,7 +223,7 @@ export function VoteSheet({ creator, votingStatus, pausedResumeAt, onClose, onVo
       cancelled = true;
       requestRef.current = false;
     };
-  }, [creator.id, onVoteResolved, votingStatus]);
+  }, [creator.id, creator.is_evicted, onVoteResolved, votingStatus, checkEviction]);
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
@@ -237,7 +267,7 @@ export function VoteSheet({ creator, votingStatus, pausedResumeAt, onClose, onVo
   };
 
   const sendCode = async (stayOnCode = false) => {
-    if (requestRef.current || votingStatus !== "live") return;
+    if (requestRef.current || votingStatus !== "live" || currentEvicted.current) return;
     const validated = validateDetails();
     if (!validated) return;
     const { normalized } = validated;
@@ -249,6 +279,7 @@ export function VoteSheet({ creator, votingStatus, pausedResumeAt, onClose, onVo
 
     requestRef.current = true;
     setInFlight(true);
+    if (!(await checkEviction())) { requestRef.current = false; setInFlight(false); return; }
     setContact(normalized);
     sendCounts.set(normalized, (sendCounts.get(normalized) ?? 0) + 1);
     const options = { shouldCreateUser: true, data: { full_name: name.trim() } };
@@ -265,6 +296,7 @@ export function VoteSheet({ creator, votingStatus, pausedResumeAt, onClose, onVo
     setCountdown(RESEND_SECONDS);
     setDigits(["", "", "", "", "", ""]);
     setError("");
+    if (currentEvicted.current) { setStep("EVICTED"); return; }
     if (!stayOnCode) setStep("CODE");
     window.setTimeout(() => inputRefs.current[0]?.focus(), 50);
   };
@@ -275,7 +307,7 @@ export function VoteSheet({ creator, votingStatus, pausedResumeAt, onClose, onVo
   };
 
   const verifyAndVote = async (token = digits.join("")) => {
-    if (requestRef.current || votingStatus !== "live") return;
+    if (requestRef.current || votingStatus !== "live" || currentEvicted.current) return;
     if (!/^\d{6}$/.test(token)) {
       setError(COPY.incompleteCode);
       return;
@@ -284,6 +316,7 @@ export function VoteSheet({ creator, votingStatus, pausedResumeAt, onClose, onVo
     requestRef.current = true;
     setInFlight(true);
     setError("");
+    if (!(await checkEviction())) { requestRef.current = false; setInFlight(false); return; }
     const { error: verifyError } = await createClient().auth.verifyOtp({ email: contact, token, type: "email" });
 
     if (verifyError) {
@@ -330,8 +363,9 @@ export function VoteSheet({ creator, votingStatus, pausedResumeAt, onClose, onVo
     void verifyAndVote();
   };
 
-  const displayStep: VoteStep = votingStatus === "paused" ? "PAUSED" : votingStatus === "closed" ? "CLOSED" : step;
+  const displayStep: VoteStep = creator.is_evicted || step === "EVICTED" ? "EVICTED" : votingStatus === "paused" ? "PAUSED" : votingStatus === "closed" ? "CLOSED" : step;
   const title =
+    displayStep === "EVICTED" ? COPY.evictedTitle :
     displayStep === "PAUSED" ? COPY.pausedTitle :
     displayStep === "DETAILS"
       ? COPY.detailsTitle(creator.name)
@@ -380,9 +414,17 @@ export function VoteSheet({ creator, votingStatus, pausedResumeAt, onClose, onVo
           </h2>
         </header>
 
+        {displayStep === "EVICTED" && (
+          <div className="mt-6 space-y-4 text-center">
+            <p className="rounded-2xl bg-red-50 px-4 py-5 text-sm leading-6 text-red-800" role="status">{COPY.evictedMessage(creator.name)}</p>
+            {creator.youtube_channel_url && <YouTubeButton href={creator.youtube_channel_url} />}
+            <Link href="/" onClick={onClose} className="block py-3 text-sm font-semibold text-[#287A1D] underline-offset-4 hover:underline">{COPY.evictedHome}</Link>
+          </div>
+        )}
+
         {displayStep === "CHECKING" && (
           <div className="flex min-h-56 items-center justify-center">
-            <LoaderCircle className="h-8 w-8 animate-spin text-[#73D75C]" aria-hidden="true" />
+            {error ? <p role="alert" className="text-center text-sm text-red-600">{error}</p> : <LoaderCircle className="h-8 w-8 animate-spin text-[#73D75C]" aria-hidden="true" />}
           </div>
         )}
 

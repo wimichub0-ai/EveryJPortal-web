@@ -26,7 +26,7 @@ export const getPortalData = cache(async () => {
     supabase
       .from("creators")
       .select(
-        "id, name, slug, tagline, photo_url, youtube_video_id, youtube_channel_url, display_order, is_active",
+        "id, name, slug, tagline, photo_url, youtube_video_id, youtube_channel_url, display_order, is_active, is_evicted, evicted_at",
       )
       .eq("is_active", true)
       .order("display_order", { ascending: true }),
@@ -54,7 +54,7 @@ export const getCreatorPageData = cache(async (slug: string) => {
     supabase
       .from("creators")
       .select(
-        "id, name, slug, tagline, photo_url, youtube_video_id, youtube_channel_url, display_order, is_active",
+        "id, name, slug, tagline, photo_url, youtube_video_id, youtube_channel_url, display_order, is_active, is_evicted, evicted_at",
       )
       .eq("slug", slug)
       .eq("is_active", true)

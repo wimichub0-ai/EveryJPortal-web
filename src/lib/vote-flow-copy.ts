@@ -12,6 +12,20 @@ export const BLOCKED_EMAIL_DOMAINS = new Set([
 ]);
 
 export const VOTE_FLOW_COPY = {
+  creatorOgVote: "Vote for me on House Of Creators",
+  evictedRibbon: "EVICTED",
+  evictedTitle: "Creator evicted",
+  evictedPill: (name: string) => `${name} has been evicted from the house`,
+  evictedMessage: (name: string) => `${name} has been evicted from the house and is no longer accepting votes.`,
+  evictedHome: "See who's still in the house →",
+  shareStory: (name: string) => `Share ${name}'s story`,
+  storyShareTitle: (name: string) => `${name}'s House Of Creator story`,
+  storyShareText: (name: string) => `Discover ${name}'s House Of Creator story and subscribe to their YouTube channel.`,
+  shareTitle: (name: string) => `Support ${name} in House Of Creator`,
+  shareText: (name: string) => `Support ${name} in House Of Creator with a vote 🗳️`,
+  shareLabel: (name: string) => `Share ${name}`,
+  shareError: "Couldn't share the link. Please try again.",
+  supportLine: (name: string) => `Support ${name} in House Of Creators with a vote — and subscribe to the YouTube channel.`,
   close: "Close voting sheet",
   checking: "Checking your voting status…",
   detailsTitle: (name: string) => `Voting for ${name}`,

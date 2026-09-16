@@ -8,6 +8,8 @@ export type Creator = {
   youtube_channel_url: string | null;
   display_order: number;
   is_active: boolean;
+  is_evicted: boolean;
+  evicted_at: string | null;
 };
 
 export type VotingStatus = "live" | "paused" | "closed";

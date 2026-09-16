@@ -18,7 +18,7 @@ export function VideoModal({ creator, votingStatus, hasVoted, onClose, onVote }:
   const closeButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
-    if (!creator) return;
+    if (!creator || creator.is_evicted) return;
 
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -35,7 +35,7 @@ export function VideoModal({ creator, votingStatus, hasVoted, onClose, onVote }:
     };
   }, [creator, onClose]);
 
-  if (!creator?.youtube_video_id) return null;
+  if (!creator?.youtube_video_id || creator.is_evicted) return null;
 
   return (
     <div

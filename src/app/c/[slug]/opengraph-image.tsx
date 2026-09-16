@@ -1,3 +1,4 @@
+import { VOTE_FLOW_COPY as COPY } from "@/lib/vote-flow-copy";
 import { ImageResponse } from "next/og";
 
 export const dynamic = "force-dynamic";
@@ -13,6 +14,7 @@ type OgImageProps = {
 type OgCreator = {
   name: string;
   photo_url: string | null;
+  is_evicted: boolean;
 };
 
 function initials(name: string) {
@@ -30,7 +32,7 @@ async function fetchCreator(slug: string): Promise<OgCreator | null> {
   if (!supabaseUrl || !anonKey) return null;
 
   const url = new URL("/rest/v1/creators", supabaseUrl);
-  url.searchParams.set("select", "name,photo_url");
+  url.searchParams.set("select", "name,photo_url,is_evicted");
   url.searchParams.set("slug", `eq.${slug}`);
   url.searchParams.set("is_active", "eq.true");
   url.searchParams.set("limit", "1");
@@ -155,7 +157,7 @@ export default async function OpenGraphImage({ params }: OgImageProps) {
           House Of Creators
         </div>
         <div style={{ marginTop: 18, fontSize: 27, lineHeight: 1.25, color: "#777777" }}>
-          Vote for me on House Of Creators
+          {creator?.is_evicted ? COPY.shareStory(name) : COPY.creatorOgVote}
         </div>
       </div>
     </div>,
