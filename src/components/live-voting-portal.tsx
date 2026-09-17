@@ -43,7 +43,7 @@ export function LiveVotingPortal({ creators: initialCreators, initialCounts, ini
 
   return (
     <>
-      <VotingStats totalVotes={totalVotes} pausedResumeAt={pausedResumeAt} votingStatus={votingStatus} remaining={remaining} />
+      <VotingStats pausedResumeAt={pausedResumeAt} votingStatus={votingStatus} remaining={remaining} />
       <TopCreators creators={rankedCreators} changedIds={changedIds} />
 
       <section aria-labelledby="creator-list-heading">

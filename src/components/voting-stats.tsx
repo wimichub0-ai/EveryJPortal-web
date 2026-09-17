@@ -1,7 +1,6 @@
 "use client";
 
-import { animate, useReducedMotion } from "framer-motion";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { getVotingDeadline } from "@/lib/voting-deadline";
 import { VotingStatusBanner } from "@/components/voting-status-banner";
 import type { VotingStatus } from "@/lib/types";
@@ -21,36 +20,15 @@ export function useVotingDeadline(configuredOpen: boolean, endsAt: string | null
   return getVotingDeadline(configuredOpen, endsAt, now);
 }
 
-export function VotingStats({ totalVotes, votingStatus, pausedResumeAt, remaining }: { totalVotes: number | null; votingStatus: VotingStatus; pausedResumeAt: string | null; remaining: number | null }) {
-  const number = useRef<HTMLSpanElement>(null);
-  const previous = useRef(totalVotes);
-  const reduced = useReducedMotion();
-  useEffect(() => {
-    if (totalVotes === null || !number.current) return;
-    const target = number.current;
-    if (reduced || previous.current === null) {
-      target.textContent = totalVotes.toLocaleString();
-      previous.current = totalVotes;
-      return;
-    }
-    const animation = animate(previous.current, totalVotes, {
-      duration: 0.32,
-      onUpdate: (value) => { target.textContent = Math.round(value).toLocaleString(); },
-    });
-    previous.current = totalVotes;
-    return () => animation.stop();
-  }, [totalVotes, reduced]);
+export function VotingStats({ votingStatus, pausedResumeAt, remaining }: { votingStatus: VotingStatus; pausedResumeAt: string | null; remaining: number | null }) {
   const units = remaining === null ? [] : [
     [Math.floor(remaining / 86400), COPY.days],
     [Math.floor(remaining / 3600) % 24, COPY.hours],
     [Math.floor(remaining / 60) % 60, COPY.minutes],
     [remaining % 60, COPY.seconds],
   ] as const;
-  if (totalVotes === null && votingStatus === "live" && remaining === null) return null;
+  if (votingStatus === "live" && remaining === null) return null;
   return <Reveal className="mb-6 space-y-4 text-center">
-    {votingStatus !== "paused" && totalVotes !== null && <p className="font-display text-xl font-bold" aria-label={`${totalVotes.toLocaleString()} ${COPY.votesCast}`}>
-      <span aria-hidden="true">🔥 <span ref={number} className="tabular-nums">{totalVotes.toLocaleString()}</span> {COPY.votesCast}</span>
-    </p>}
     <VotingStatusBanner status={votingStatus} pausedResumeAt={pausedResumeAt} />
     {votingStatus === "live" && remaining !== null && (
       <div role="timer" aria-label={COPY.closesTimerLabel} className="flex justify-center gap-2">

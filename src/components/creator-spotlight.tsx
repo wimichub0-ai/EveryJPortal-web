@@ -49,7 +49,7 @@ export function CreatorSpotlight({
 
   return (
     <>
-      <VotingStats totalVotes={totalVotes} pausedResumeAt={pausedResumeAt} votingStatus={votingStatus} remaining={remaining} />
+      <VotingStats pausedResumeAt={pausedResumeAt} votingStatus={votingStatus} remaining={remaining} />
       <CreatorCard
         creator={creator}
         count={counts[creator.id] ?? 0}
