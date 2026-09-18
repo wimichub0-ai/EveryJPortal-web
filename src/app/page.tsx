@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import { IntroSplash } from "@/components/intro-splash";
 import { Footer } from "@/components/footer";
 import { Hero } from "@/components/hero";
+import { AnnouncementTicker } from "@/components/announcement-ticker";
 import { LiveVotingPortal } from "@/components/live-voting-portal";
 import { getPortalData } from "@/lib/portal-data";
 
@@ -41,6 +42,7 @@ export default async function Home() {
   return (
     <main className="min-h-screen bg-[#F5F5F5] px-4 py-8 text-[#2B2B2B] sm:py-12">
       <IntroSplash title={settings.campaign_title} />
+      <AnnouncementTicker initialSettings={settings} />
       <div className="mx-auto flex w-full max-w-md flex-col gap-8">
         <Hero
           title={settings.campaign_title}

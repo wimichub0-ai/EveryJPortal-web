@@ -21,6 +21,8 @@ export type PortalSettings = {
   voting_status: VotingStatus;
   paused_resume_at: string | null;
   voting_ends_at: string | null;
+  announcement_text: string | null;
+  announcement_active: boolean;
 };
 
 export type VoteCount = {

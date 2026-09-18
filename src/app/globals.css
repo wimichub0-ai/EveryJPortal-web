@@ -88,3 +88,30 @@ a:focus-visible {
     animation-iteration-count: 1 !important;
   }
 }
+
+@keyframes announcement-scroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+
+.announcement-track {
+  display: flex;
+  flex-shrink: 0;
+  width: max-content;
+  min-width: 200%;
+  animation: announcement-scroll 18s linear infinite;
+}
+
+.announcement-copy {
+  flex: 1 0 auto;
+  white-space: nowrap;
+  padding-inline: 20px;
+}
+
+.announcement-static { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .announcement-control { display: none; }
+  .announcement-track { animation: none; }
+  .announcement-static { display: flex; }
+}

@@ -11,6 +11,8 @@ const fallbackSettings: PortalSettings = {
   voting_status: "live",
   paused_resume_at: null,
   voting_ends_at: null,
+  announcement_text: null,
+  announcement_active: false,
 };
 
 // Normalize legacy rows only while the status migration is pending.

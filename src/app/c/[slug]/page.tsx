@@ -5,6 +5,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { VotingHelpButton } from "@/components/voting-help-button";
 import { IntroSplash } from "@/components/intro-splash";
+import { AnnouncementTicker } from "@/components/announcement-ticker";
 import { Reveal } from "@/components/reveal";
 import { CreatorSpotlight } from "@/components/creator-spotlight";
 import { getCreatorPageData } from "@/lib/portal-data";
@@ -61,6 +62,7 @@ export default async function CreatorPage({ params }: CreatorPageProps) {
   return (
     <main className="min-h-screen bg-[#F5F5F5] px-4 py-7 text-[#2B2B2B] sm:py-10">
       <IntroSplash key={slug} title={settings.campaign_title} />
+      <AnnouncementTicker initialSettings={settings} />
       <div className="mx-auto w-full max-w-md">
         <Reveal><header className="relative mb-6 min-h-11 px-12 py-3 text-center">
           <VotingHelpButton />

@@ -12,6 +12,9 @@ export const BLOCKED_EMAIL_DOMAINS = new Set([
 ]);
 
 export const VOTE_FLOW_COPY = {
+  announcementLabel: "Announcement",
+  pauseAnnouncement: "Pause scrolling announcement",
+  resumeAnnouncement: "Resume scrolling announcement",
   creatorOgVote: "Vote for me on House Of Creators",
   evictedRibbon: "EVICTED",
   evictedTitle: "Creator evicted",
