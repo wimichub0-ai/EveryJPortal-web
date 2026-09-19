@@ -1,6 +1,6 @@
 import { VOTE_FLOW_COPY as COPY } from "./vote-flow-copy.ts";
 
-type ShareCreator = { name: string; slug: string; is_evicted?: boolean };
+type ShareCreator = { name: string; slug: string; is_evicted?: boolean; is_winner?: boolean; final_standing?: boolean };
 type ShareBrowser = {
   share?: (data: ShareData) => Promise<void>;
   clipboard?: { writeText: (text: string) => Promise<void> };
@@ -8,8 +8,8 @@ type ShareBrowser = {
 
 export function creatorShareData(creator: ShareCreator, origin: string): ShareData & { url: string } {
   return {
-    title: creator.is_evicted ? COPY.storyShareTitle(creator.name) : COPY.shareTitle(creator.name),
-    text: creator.is_evicted ? COPY.storyShareText(creator.name) : COPY.shareText(creator.name),
+    title: creator.is_winner ? COPY.winnerShareText(creator.name) : creator.is_evicted || creator.final_standing ? COPY.storyShareTitle(creator.name) : COPY.shareTitle(creator.name),
+    text: creator.is_winner ? COPY.winnerShareText(creator.name) : creator.is_evicted || creator.final_standing ? COPY.storyShareText(creator.name) : COPY.shareText(creator.name),
     url: `${origin}/c/${encodeURIComponent(creator.slug)}`,
   };
 }

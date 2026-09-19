@@ -8,8 +8,8 @@ import { VOTE_FLOW_COPY as COPY } from "@/lib/vote-flow-copy";
 import type { Creator } from "@/lib/types";
 
 type ShareCreatorButtonProps = {
-  creator: Pick<Creator, "name" | "slug" | "is_evicted">;
-  variant: "corner-on-media" | "vote-sheet";
+  creator: Pick<Creator, "name" | "slug" | "is_evicted"> & { is_winner?: boolean; final_standing?: boolean };
+  variant: "corner-on-media" | "vote-sheet" | "winner";
 };
 
 export function ShareCreatorButton({ creator, variant }: ShareCreatorButtonProps) {
@@ -48,7 +48,7 @@ export function ShareCreatorButton({ creator, variant }: ShareCreatorButtonProps
     <div className={corner ? "absolute right-[10px] top-[10px] z-20" : "relative"}>
       <motion.button
         type="button"
-        aria-label={creator.is_evicted ? COPY.shareStory(creator.name) : COPY.shareLabel(creator.name)}
+        aria-label={creator.is_winner ? COPY.winnerShare : creator.is_evicted || creator.final_standing ? COPY.shareStory(creator.name) : COPY.shareLabel(creator.name)}
         whileTap={reduced ? undefined : { scale: 0.94 }}
         transition={{ duration: 0.12 }}
         onClick={(event) => {
@@ -57,11 +57,11 @@ export function ShareCreatorButton({ creator, variant }: ShareCreatorButtonProps
         }}
         className={corner
           ? "flex h-[34px] w-[34px] items-center justify-center rounded-full bg-black/40 text-white transition hover:bg-black/60"
-          : "flex min-h-12 w-full items-center justify-center gap-2 rounded-full border border-[#2B2B2B]/25 bg-white px-5 font-display text-sm font-semibold text-[#2B2B2B] transition hover:border-[#2B2B2B] hover:bg-[#FAFAFA]"}
+          : variant === "winner" ? "flex min-h-12 w-full items-center justify-center gap-2 rounded-full bg-brand px-5 font-display text-sm font-bold text-[#2B2B2B]" : "flex min-h-12 w-full items-center justify-center gap-2 rounded-full border border-[#2B2B2B]/25 bg-white px-5 font-display text-sm font-semibold text-[#2B2B2B] transition hover:border-[#2B2B2B] hover:bg-[#FAFAFA]"}
       >
         {corner ? <Share2 className="h-4 w-4" aria-hidden="true" /> : <>
           <ExternalLink className="h-4 w-4" aria-hidden="true" />
-          {feedback === "copied" ? COPY.copied : creator.is_evicted ? COPY.shareStory(creator.name) : COPY.share(creator.name)}
+          {feedback === "copied" ? COPY.copied : creator.is_winner ? COPY.winnerShare : creator.is_evicted || creator.final_standing ? COPY.shareStory(creator.name) : COPY.share(creator.name)}
         </>}
       </motion.button>
       <span role="status" aria-live="polite" className={feedback && (corner || feedback === "error")

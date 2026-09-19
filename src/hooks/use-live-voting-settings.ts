@@ -6,7 +6,7 @@ import { normalizeVotingSettings } from "@/lib/voting-settings";
 import { useVotingDeadline } from "@/components/voting-stats";
 import type { PortalSettings, VotingStatus } from "@/lib/types";
 
-export type VotingSettings = Pick<PortalSettings, "voting_status" | "voting_ends_at" | "paused_resume_at">;
+export type VotingSettings = Pick<PortalSettings, "voting_status" | "voting_ends_at" | "paused_resume_at" | "winner_creator_id" | "winner_declared_at">;
 
 export function useLiveVotingSettings(initialSettings: VotingSettings) {
   const [settings, setSettings] = useState(initialSettings);
@@ -39,5 +39,5 @@ export function useLiveVotingSettings(initialSettings: VotingSettings) {
   }, []);
   const { remaining } = useVotingDeadline(settings.voting_status === "live", settings.voting_ends_at);
   const votingStatus: VotingStatus = settings.voting_status === "live" && remaining === 0 ? "closed" : settings.voting_status;
-  return { votingStatus, pausedResumeAt: settings.paused_resume_at, remaining };
+  return { votingStatus, pausedResumeAt: settings.paused_resume_at, remaining, winnerCreatorId: settings.winner_creator_id, winnerDeclaredAt: settings.winner_declared_at };
 }

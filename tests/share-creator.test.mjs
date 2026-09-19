@@ -53,3 +53,21 @@ test('clipboard failure propagates instead of reporting Link copied', async () =
   }), /Denied/);
   await assert.rejects(shareCreatorLink(creator, origin, {}), /Clipboard unavailable/);
 });
+
+
+test('winner shares celebrate the winner and preserve the creator link', async () => {
+  const winner = { ...creator, is_winner: true };
+  const data = creatorShareData(winner, origin);
+  assert.equal(data.title, 'Ada won House Of Creator! 🏆');
+  assert.equal(data.text, 'Ada won House Of Creator! 🏆');
+  assert.equal(data.url, expected.url);
+  let shared;
+  await shareCreatorLink(winner, origin, { share: async (data) => { shared = data; } });
+  assert.deepEqual(shared, data);
+});
+
+test('final standing shares do not ask for more votes', () => {
+  const data = creatorShareData({ ...creator, final_standing: true }, origin);
+  assert.doesNotMatch(data.text, /with a vote/);
+  assert.equal(data.url, expected.url);
+});

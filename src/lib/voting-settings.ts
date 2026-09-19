@@ -7,6 +7,8 @@ export function normalizeVotingSettings(settings: Partial<PortalSettings>) {
       ? status : settings.voting_open === false ? "closed" : "live") as VotingStatus,
     voting_ends_at: settings.voting_ends_at ?? null,
     paused_resume_at: settings.paused_resume_at ?? null,
+    winner_creator_id: settings.winner_creator_id ?? null,
+    winner_declared_at: settings.winner_declared_at ?? null,
   };
 }
 

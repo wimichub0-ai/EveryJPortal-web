@@ -77,7 +77,7 @@ export default async function CreatorPage({ params }: CreatorPageProps) {
         <CreatorSpotlight
           creator={creator}
           initialCounts={counts}
-          initialSettings={{ voting_status: settings.voting_status, paused_resume_at: settings.paused_resume_at, voting_ends_at: settings.voting_ends_at }}
+          initialSettings={{ voting_status: settings.voting_status, paused_resume_at: settings.paused_resume_at, voting_ends_at: settings.voting_ends_at, winner_creator_id: settings.winner_creator_id, winner_declared_at: settings.winner_declared_at }}
           initialTotal={totalVotes}
         />
 

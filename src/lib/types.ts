@@ -23,6 +23,8 @@ export type PortalSettings = {
   voting_ends_at: string | null;
   announcement_text: string | null;
   announcement_active: boolean;
+  winner_creator_id: string | null;
+  winner_declared_at: string | null;
 };
 
 export type VoteCount = {

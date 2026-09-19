@@ -13,6 +13,8 @@ const fallbackSettings: PortalSettings = {
   voting_ends_at: null,
   announcement_text: null,
   announcement_active: false,
+  winner_creator_id: null,
+  winner_declared_at: null,
 };
 
 // Normalize legacy rows only while the status migration is pending.

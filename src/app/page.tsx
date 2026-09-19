@@ -44,12 +44,12 @@ export default async function Home() {
       <IntroSplash title={settings.campaign_title} />
       <AnnouncementTicker initialSettings={settings} />
       <div className="mx-auto flex w-full max-w-md flex-col gap-8">
-        <Hero
-          title={settings.campaign_title}
-          subtitle={settings.campaign_subtitle}
-        />
-
         {error ? (
+          <>
+            <Hero
+              title={settings.campaign_title}
+              subtitle={settings.campaign_subtitle}
+            />
           <div className="rounded-[20px] bg-white px-6 py-10 text-center shadow-[0_8px_30px_rgba(43,43,43,0.06)]">
             <p className="font-display text-lg font-semibold">
               We couldn&apos;t load the creators just now.
@@ -58,11 +58,15 @@ export default async function Home() {
               Please refresh the page in a moment.
             </p>
           </div>
+          </>
         ) : (
           <LiveVotingPortal
+            hero={
+              <Hero title={settings.campaign_title} subtitle={settings.campaign_subtitle} />
+            }
             creators={creators}
             initialCounts={counts}
-            initialSettings={{ voting_status: settings.voting_status, paused_resume_at: settings.paused_resume_at, voting_ends_at: settings.voting_ends_at }}
+            initialSettings={{ voting_status: settings.voting_status, paused_resume_at: settings.paused_resume_at, voting_ends_at: settings.voting_ends_at, winner_creator_id: settings.winner_creator_id, winner_declared_at: settings.winner_declared_at }}
             initialTotal={totalVotes}
           />
         )}

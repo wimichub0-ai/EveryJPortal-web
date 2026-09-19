@@ -12,6 +12,18 @@ export const BLOCKED_EMAIL_DOMAINS = new Set([
 ]);
 
 export const VOTE_FLOW_COPY = {
+  winnerBadge: "HOUSE OF CREATOR WINNER",
+  finalVoteCount: "FINAL VOTE COUNT",
+  finalStandings: "Final standings",
+  grandPrize: "GRAND PRIZE",
+  winnerPrize: "₦1,000,000",
+  winnerThanks: "Thank you to everyone who voted and to every creator who showed up.",
+  winnerShare: "Share the winning moment",
+  winnerShareText: (name: string) => `${name} won House Of Creator! 🏆`,
+  seeWinner: "See this year's winner →",
+  voteForCreator: "Vote your favourite creator",
+  finalStandingCount: (count: number) => `Final standing · ${count.toLocaleString()} votes`,
+
   announcementLabel: "Announcement",
   pauseAnnouncement: "Pause scrolling announcement",
   resumeAnnouncement: "Resume scrolling announcement",

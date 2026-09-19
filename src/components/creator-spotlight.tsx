@@ -1,5 +1,8 @@
 "use client";
 
+import Link from "next/link";
+import { WinnerSpotlight } from "@/components/winner-spotlight";
+import { useDeclaredWinner } from "@/hooks/use-declared-winner";
 import { useCreatorEvictions } from "@/hooks/use-creator-evictions";
 import { VOTE_FLOW_COPY as COPY } from "@/lib/vote-flow-copy";
 import { useCallback, useMemo, useState } from "react";
@@ -24,10 +27,12 @@ export function CreatorSpotlight({
   initialSettings,
   initialTotal,
 }: CreatorSpotlightProps) {
-  const { votingStatus, pausedResumeAt, remaining } = useLiveVotingSettings(initialSettings);
+  const { votingStatus, pausedResumeAt, remaining, winnerCreatorId } = useLiveVotingSettings(initialSettings);
   const initialCreators = useMemo(() => [initialCreator], [initialCreator]);
   const creators = useCreatorEvictions(initialCreators);
   const creator = creators[0];
+  const winner = useDeclaredWinner(winnerCreatorId, creator.id === winnerCreatorId ? creator : null);
+  const portalVotingStatus = winnerCreatorId ? "closed" : votingStatus;
   const { counts, changedIds, totalVotes, setOptimisticCount } =
     useLiveVoteCounts(creators, initialCounts, initialTotal);
   const [videoCreator, setVideoCreator] = useState<Creator | null>(null);
@@ -49,33 +54,37 @@ export function CreatorSpotlight({
 
   return (
     <>
-      <VotingStats pausedResumeAt={pausedResumeAt} votingStatus={votingStatus} remaining={remaining} />
-      <CreatorCard
-        creator={creator}
-        count={counts[creator.id] ?? 0}
-        totalVotes={totalVotes ?? Object.values(counts).reduce((sum, count) => sum + count, 0)}
-        votingStatus={votingStatus}
-        hasVoted={hasVoted}
-        countChanged={changedIds.has(creator.id)}
-        supportLine={COPY.supportLine(creator.name)}
-        onOpenVideo={setVideoCreator}
-        onVote={openVoteSheet}
-      />
+      {!winnerCreatorId && <VotingStats pausedResumeAt={pausedResumeAt} votingStatus={portalVotingStatus} remaining={remaining} />}
+      {winner && winner.id !== creator.id && <Link className="mb-5 block rounded-xl bg-brand-pale px-4 py-3 text-center text-sm font-bold text-brand-ink" href={`/c/${encodeURIComponent(winner.slug)}`}>{COPY.seeWinner}</Link>}
+      {winnerCreatorId === creator.id ? <WinnerSpotlight creator={creator} count={counts[creator.id] ?? 0} /> : (
+        <CreatorCard
+          creator={creator}
+          count={counts[creator.id] ?? 0}
+          totalVotes={totalVotes ?? Object.values(counts).reduce((sum, count) => sum + count, 0)}
+          votingStatus={portalVotingStatus}
+          hasVoted={hasVoted}
+          countChanged={changedIds.has(creator.id)}
+          finalStanding={Boolean(winnerCreatorId)}
+          supportLine={COPY.supportLine(creator.name)}
+          onOpenVideo={setVideoCreator}
+          onVote={openVoteSheet}
+        />
+      )}
 
       <VideoModal
-        creator={videoCreator ? creator : null}
-        votingStatus={votingStatus}
+        creator={!winnerCreatorId && videoCreator ? creator : null}
+        votingStatus={portalVotingStatus}
         hasVoted={hasVoted}
         onClose={() => setVideoCreator(null)}
         onVote={openVoteSheet}
       />
 
-      {voteCreator && (
+      {!winnerCreatorId && voteCreator && (
         <VoteSheet
           pausedResumeAt={pausedResumeAt}
           key={voteCreator.id}
           creator={creator}
-          votingStatus={votingStatus}
+          votingStatus={portalVotingStatus}
           onClose={() => setVoteCreator(null)}
           onVoteResolved={handleVoteResolved}
         />
